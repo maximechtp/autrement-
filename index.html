@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Spécialistes</title>
+  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="teacher-styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Leaflet.js for map -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <!-- Google Sign-In -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+
+<div id="header-nav" role="navigation" aria-label="Navigation principale">
+  <button id="btn-back" class="btn-bubble" aria-label="Retour à la page précédente" title="Retour">←</button>
+  <div id="user-avatar" class="user-avatar hidden" aria-label="Profil utilisateur" title="">
+    <img id="avatar-img" src="" alt="Photo de profil">
+  </div>
+  <button id="btn-home" class="btn-home" data-action="goTo" data-param="home" aria-label="Accueil">🏠 Accueil</button>
+</div>
+
+<div id="home" class="page">
+  <h1 id="home-title">LOK IN</h1>
+  <p id="home-subtitle" class="subtitle">Cours vidéo immédiats entre élèves et professeurs</p>
+  
+  <button data-action="checkLoginAndGo" data-param="eleve" aria-label="Accès pour les élèves">🎓 Je suis élève</button>
+  <button data-action="checkLoginAndGo" data-param="professeur" aria-label="Accès pour les professeurs">🧑‍🏫 Je suis professeur</button>
+
+  <div id="home-footer" class="home-footer">
+    <div class="reviews-section">
+      <h3 class="reviews-title">Avis de nos clients</h3>
+      
+      <div class="review-card">
+        <div class="review-header">
+          <img src="https://i.pravatar.cc/100?img=1" alt="Photo de profil" class="review-avatar">
+          <div class="review-info">
+            <h4 class="review-name">Marie Dubois</h4>
+            <div class="review-stars">★★★★★</div>
+          </div>
+        </div>
+        <p class="review-text">"Excellents cours, très bien expliqués! Les vidéos sont claires et j'ai vraiment progressé. Merci beaucoup!"</p>
+      </div>
+
+      <div class="review-card">
+        <div class="review-header">
+          <img src="https://i.pravatar.cc/100?img=2" alt="Photo de profil" class="review-avatar">
+          <div class="review-info">
+            <h4 class="review-name">Jean Martin</h4>
+            <div class="review-stars">★★★★☆</div>
+          </div>
+        </div>
+        <p class="review-text">"Super plateforme, très utile pour rattraper les cours. Interface intuitive et facile à utiliser."</p>
+      </div>
+
+      <div class="review-card">
+        <div class="review-header">
+          <img src="https://i.pravatar.cc/100?img=3" alt="Photo de profil" class="review-avatar">
+          <div class="review-info">
+            <h4 class="review-name">Sophie Laurent</h4>
+            <div class="review-stars">★★★★★</div>
+          </div>
+        </div>
+        <p class="review-text">"J'ai enfin compris les maths! Les spécialistes expliquent vraiment bien. Je recommande vivement!"</p>
+      </div>
+    </div>
+
+    <div class="social-section">
+      <h3 class="social-title">Nous suivre</h3>
+      <div class="social-box">
+        <a href="https://www.instagram.com/lokin.officiel/" target="_blank" rel="noopener noreferrer" aria-label="Rejoindre sur Instagram" class="social-link instagram">
+          <span class="social-icon-wrapper instagram-gradient">
+            <svg class="social-icon" viewBox="0 0 24 24" fill="white">
+              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.266.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zM5.838 12a6.162 6.162 0 1 1 12.324 0 6.162 6.162 0 0 1-12.324 0zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm4.965-10.322a1.44 1.44 0 1 1 2.881.001 1.44 1.44 0 0 1-2.881-.001z"/>
+            </svg>
+          </span>
+          <span class="social-text">Notre Instagram</span>
+        </a>
+        <a href="https://www.facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Rejoindre sur Facebook" class="social-link facebook">
+          <span class="social-icon-wrapper facebook-bg">
+            <svg class="social-icon" viewBox="0 0 24 24" fill="white">
+              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+            </svg>
+          </span>
+          <span class="social-text">Notre Facebook</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="eleve" class="page hidden">
+  <h2 id="eleve-title">Élève</h2>
+  <div class="login-container">
+    <div class="login-form-section">
+      <h3 class="login-method-title">Connexion avec vos informations</h3>
+      <form id="form-eleve" novalidate>
+        <div class="form-group">
+          <label for="prenom">Prénom <span aria-label="obligatoire">*</span></label>
+          <input id="prenom" type="text" placeholder="Entrez votre prénom" required aria-describedby="error-prenom">
+          <span class="error-message" id="error-prenom" role="alert"></span>
+        </div>
+        
+        <div class="form-group">
+          <label for="nom">Nom <span aria-label="obligatoire">*</span></label>
+          <input id="nom" type="text" placeholder="Entrez votre nom" required aria-describedby="error-nom">
+          <span class="error-message" id="error-nom" role="alert"></span>
+        </div>
+        
+        <div class="form-group">
+          <label for="email">Email <span aria-label="obligatoire">*</span></label>
+          <input id="email" type="email" placeholder="exemple@email.com" required aria-describedby="error-email">
+          <span class="error-message" id="error-email" role="alert"></span>
+        </div>
+        
+        <div class="form-group">
+          <label for="password">Mot de passe <span aria-label="obligatoire">*</span></label>
+          <input id="password" type="password" placeholder="Entrez votre mot de passe" required aria-describedby="error-password">
+          <span class="error-message" id="error-password" role="alert"></span>
+        </div>
+        
+        <div class="form-group">
+          <label for="classe">Classe <span class="optional-label">(optionnel)</span></label>
+          <select id="classe" aria-describedby="error-classe">
+            <option value="">–– Sélectionnez une classe (optionnel) ––</option>
+            <option>CP</option>
+            <option>CE1</option>
+            <option>CE2</option>
+            <option>CM1</option>
+            <option>CM2</option>
+            <option>6e</option>
+            <option>5e</option>
+            <option>4e</option>
+            <option>3e</option>
+            <option>2nde</option>
+            <option>1ère</option>
+            <option>Terminale</option>
+            <option>Études supérieures</option>
+            <option>Autre / Non étudiant</option>
+          </select>
+          <span class="error-message" id="error-classe" role="alert"></span>
+        </div>
+        
+        <button id="btn-submit-eleve" type="submit" disabled aria-label="Se connecter">Se connecter</button>
+      </form>
+    </div>
+    
+    <div class="login-divider">
+      <span>OU</span>
+    </div>
+    
+    <div class="login-google-section">
+      <h3 class="login-method-title">Connexion rapide</h3>
+      <div id="g_id_onload"
+           data-client_id="1083063645018-a67vm1ajs7k735bv088vcr840l64ree2.apps.googleusercontent.com"
+           data-callback="handleGoogleSignIn">
+      </div>
+      <button id="btn-google-login" class="btn-google" type="button" aria-label="Se connecter avec Google">
+        <svg class="google-icon" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Se connecter avec Google
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="professeur" class="page hidden">
+  <h2 id="professeur-title">Professeur</h2>
+  <div class="login-container">
+    <div class="login-form-section">
+      <h3 class="login-method-title">Connexion avec vos informations</h3>
+      <form id="form-professeur" novalidate>
+        <div class="form-group">
+          <label for="prof-prenom">Prénom <span aria-label="obligatoire">*</span></label>
+          <input id="prof-prenom" type="text" placeholder="Entrez votre prénom" required aria-describedby="error-prof-prenom">
+          <span class="error-message" id="error-prof-prenom" role="alert"></span>
+        </div>
+        
+        <div class="form-group">
+          <label for="prof-nom">Nom <span aria-label="obligatoire">*</span></label>
+          <input id="prof-nom" type="text" placeholder="Entrez votre nom" required aria-describedby="error-prof-nom">
+          <span class="error-message" id="error-prof-nom" role="alert"></span>
+        </div>
+        
+        <div class="form-group">
+          <label for="prof-email">Email <span aria-label="obligatoire">*</span></label>
+          <input id="prof-email" type="email" placeholder="exemple@email.com" required aria-describedby="error-prof-email">
+          <span class="error-message" id="error-prof-email" role="alert"></span>
+        </div>
+        
+        <div class="form-group">
+          <label for="prof-password">Mot de passe <span aria-label="obligatoire">*</span></label>
+          <input id="prof-password" type="password" placeholder="Entrez votre mot de passe" required aria-describedby="error-prof-password">
+          <span class="error-message" id="error-prof-password" role="alert"></span>
+        </div>
+        
+        <button id="btn-submit-professeur" type="submit" disabled aria-label="Se connecter">Se connecter</button>
+      </form>
+    </div>
+    
+    <div class="login-divider">
+      <span>OU</span>
+    </div>
+    
+    <div class="login-google-section">
+      <h3 class="login-method-title">Connexion rapide</h3>
+      <button id="btn-google-login-prof" class="btn-google" type="button" aria-label="Se connecter avec Google">
+        <svg class="google-icon" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Se connecter avec Google
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="user-profile" class="page hidden">
+  <h2 id="profile-title">Mon Profil</h2>
+  
+  <div class="profile-container">
+    <div class="profile-info-card">
+      <div class="profile-avatar-large">
+        <img id="profile-avatar-img" src="" alt="Photo de profil">
+      </div>
+      <h3 id="profile-name">Nom Utilisateur</h3>
+      <p id="profile-email" class="profile-detail">📧 email@example.com</p>
+      <p id="profile-classe" class="profile-detail">🏫 Classe</p>
+      <div id="profile-status" class="profile-status"></div>
+    </div>
+    
+    <div class="subscription-section">
+      <h3 class="subscription-title">Plans d'abonnement</h3>
+      <p class="subscription-subtitle">Choisissez le plan qui vous convient</p>
+      
+      <div class="subscription-plans">
+        <div class="plan-card">
+          <div class="plan-header">
+            <h4 class="plan-name">Gratuit</h4>
+            <div class="plan-price">
+              <span class="price-amount">0€</span>
+              <span class="price-period">/mois</span>
+            </div>
+          </div>
+          <ul class="plan-features">
+            <li>✓ 3 sessions Lucky Chat</li>
+            <li>✓ 3 débats</li>
+            <li>✗ 0 cours</li>
+            <li>✗ Priorité de connexion</li>
+            <li>✗ Support prioritaire</li>
+          </ul>
+          <button class="plan-button plan-current" disabled>Plan actuel</button>
+        </div>
+        
+        <div class="plan-card plan-popular">
+          <div class="plan-badge">Le plus populaire</div>
+          <div class="plan-header">
+            <h4 class="plan-name">Standard</h4>
+            <div class="plan-price">
+              <span class="price-amount">4,99€</span>
+              <span class="price-period">/mois</span>
+            </div>
+          </div>
+          <ul class="plan-features">
+            <li>✓ Lucky Chat illimité</li>
+            <li>✓ Débats illimités</li>
+            <li>✓ Priorité de connexion</li>
+            <li>✗ Accès aux cours</li>
+            <li>✗ Support prioritaire</li>
+          </ul>
+          <button class="plan-button" data-action="subscribe" data-param="standard">Choisir ce plan</button>
+        </div>
+        
+        <div class="plan-card plan-premium">
+          <div class="plan-header">
+            <h4 class="plan-name">Premium</h4>
+            <div class="plan-price">
+              <span class="price-amount">120€</span>
+              <span class="price-period">/an</span>
+            </div>
+          </div>
+          <ul class="plan-features">
+            <li>✓ 20 cours inclus</li>
+            <li>✓ Lucky Chat illimité</li>
+            <li>✓ Débats illimités</li>
+            <li>✓ Priorité de connexion</li>
+            <li>✓ Support prioritaire 24/7</li>
+            <li>✓ Supplément: 25€ pour 4 cours</li>
+          </ul>
+          <button class="plan-button" data-action="subscribe" data-param="premium">Choisir ce plan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <button data-action="logout" class="btn-secondary" style="margin-top: 30px;">🚪 Se déconnecter</button>
+</div>
+
+<div id="eleve-options" class="page hidden">
+  <h2 id="options-title">Choisissez une option</h2>
+  <button data-action="chooseOption" data-param="cours" aria-label="Sélectionner cours de 20 minutes">📚 Cours 20 min</button>
+  <button data-action="chooseOption" data-param="debat" aria-label="Sélectionner débat en direct">🎤 Débat</button>
+  <button data-action="chooseOption" data-param="chat" aria-label="Sélectionner Lucky Chat">💬 Lucky Chat</button>
+</div>
+
+<div id="option-confirmation" class="page hidden">
+  <h2 id="option-confirm-title">Option Confirmée</h2>
+  <p id="option-confirm-text"></p>
+  <button data-action="continueFromOption">Continuer</button>
+  <button data-action="cancelFromOption">Retour</button>
+</div>
+
+<div id="langue-selection" class="page hidden">
+  <h2 id="langue-title">Choisissez une langue</h2>
+  <label for="langue-select">Langue</label>
+  <select id="langue-select" aria-label="Sélectionner une langue">
+    <option>Français</option>
+    <option>Anglais</option>
+    <option>Espagnol</option>
+    <option>Allemand</option>
+    <option>Italien</option>
+  </select>
+  <button data-action="confirmLanguage" aria-label="Continuer avec la langue sélectionnée">▶ Continuer</button>
+  <button data-action="cancelLanguage" aria-label="Retour aux options">◀ Retour</button>
+</div>
+
+<div id="meet-created" class="page hidden">
+  <h2 id="meet-created-title">Débat Créé</h2>
+  <p id="meet-created-text">Votre débat a été créé! Partagez le lien ci-dessous avec les autres participants.</p>
+  <p>Lien Google Meet : <a href="#" id="meet-created-link" target="_blank">Ouvrir Meet</a></p>
+  <p id="meet-created-id"></p>
+  <button data-action="copyMeetLink">Copier le lien</button>
+  <button data-action="startDebate">Commencer le débat</button>
+  <button data-action="goTo" data-param="home" class="btn-secondary">Annuler</button>
+</div>
+
+<div id="prof" class="page hidden">
+  <h2>Espace Professeur</h2>
+  <div class="prof-public-profile">
+    <div class="prof-name-container">
+      <h3 id="prof-display-name" class="prof-name">Nom du Professeur</h3>
+    </div>
+    
+    <div class="prof-stats-container">
+      <div class="prof-stat-card">
+        <div class="stat-icon">⭐</div>
+        <div class="stat-label">Score moyen</div>
+        <div id="prof-avg-score" class="stat-value">-</div>
+        <div class="stat-unit">/5</div>
+      </div>
+      
+      <div class="prof-stat-card">
+        <div class="stat-icon">📅</div>
+        <div class="stat-label">Cours (30 derniers jours)</div>
+        <div id="prof-courses-30days" class="stat-value">-</div>
+        <div class="stat-unit">cours</div>
+      </div>
+      
+      <div class="prof-stat-card">
+        <div class="stat-icon">📚</div>
+        <div class="stat-label">Total depuis le début</div>
+        <div id="prof-courses-total" class="stat-value">-</div>
+        <div class="stat-unit">cours</div>
+      </div>
+    </div>
+    
+    <div class="cagnotte-container">
+      <div class="cagnotte-header">
+        <h3>🏛️ Ma Cagnotte</h3>
+        <p class="cagnotte-subtitle">Vos gains cumulés avec les cours donnés</p>
+      </div>
+      <div class="cagnotte-montant">
+        <span class="montant-value" id="prof-cagnotte-total">0€</span>
+      </div>
+      <div class="cagnotte-details">
+        <div class="detail-item">
+          <span class="detail-label">📊 Cours donnés ce mois:</span>
+          <span class="detail-value" id="prof-cours-mois">0</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">💵 Gains ce mois:</span>
+          <span class="detail-value" id="prof-gains-mois">0€</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="matieres-disponibilites">
+    <h3>Mes Matières Autorisées</h3>
+    <p class="disponibilites-subtitle">Pour enseigner de nouvelles matières, vous devez prendre rendez-vous avec notre équipe</p>
+    
+    <div class="autorisation-info">
+      <div class="info-icon">🔒</div>
+      <div class="info-content">
+        <h4>Demande d'autorisation requise</h4>
+        <p>Vous devez obtenir l'autorisation de notre équipe pour enseigner des matières. Une fois autorisé, vous pourrez activer/désactiver votre disponibilité pour ces matières.</p>
+        <button data-action="demanderAutorisation" class="btn-demande-autorisation">📅 Prendre rendez-vous pour une autorisation</button>
+      </div>
+    </div>
+    
+    <h4 class="matieres-autorisees-title">Matières pour lesquelles vous avez l'autorisation :</h4>
+    <div id="matieres-autorisees-list" class="matiere-grid">
+      <p class="no-matieres-autorisees">Aucune matière autorisée pour le moment. Prenez rendez-vous pour obtenir vos autorisations.</p>
+    </div>
+    
+    <div id="matieres-disponibilite-toggle" class="matiere-grid hidden">
+      <!-- Les matières autorisées avec toggle apparaîtront ici -->
+    </div>
+  </div>
+  
+  <div class="cours-en-attente">
+    <h3>Demandes de Cours en Attente</h3>
+    <p class="cours-subtitle">Cours de 20 minutes demandés par les élèves</p>
+    <div id="liste-demandes-cours" class="liste-demandes">
+      <p class="no-demandes">Aucune demande de cours pour le moment</p>
+    </div>
+  </div>
+</div>
+
+<div id="profil-professeur" class="page hidden">
+  <h2 id="profil-prof-title">Mon Profil Enseignant</h2>
+  
+  <div class="profile-container">
+    <div class="profile-info-card">
+      <div class="profile-avatar-large">
+        <img id="profil-prof-avatar-img" src="" alt="Photo de profil">
+      </div>
+      <h3 id="profil-prof-name">Nom Professeur</h3>
+      <p id="profil-prof-email" class="profile-detail">📧 email@example.com</p>
+      <p class="profile-detail">👨‍🏫 Enseignant</p>
+      <div class="profile-status subscribed">✓ Accès Illimité</div>
+    </div>
+    
+    <div class="subscription-section">
+      <h3 class="subscription-title">Votre Statut Enseignant</h3>
+      <p class="subscription-subtitle">Vous bénéficiez d'un accès illimité à la plateforme</p>
+      
+      <div class="remuneration-card">
+        <div class="remuneration-icon">💰</div>
+        <div class="remuneration-info">
+          <h4>Rémunération par cours</h4>
+          <div class="remuneration-montant">5€ <span>/ 20 minutes</span></div>
+          <p>Chaque cours que vous dispensez est rémunéré 5 euros. Vos gains s'accumulent automatiquement dans votre cagnotte.</p>
+        </div>
+      </div>
+      
+      <div class="teacher-benefits">
+        <div class="benefit-card">
+          <div class="benefit-icon">📚</div>
+          <h4>Cours illimités</h4>
+          <p>Donnez autant de cours de 20 minutes que vous le souhaitez</p>
+        </div>
+        
+        <div class="benefit-card">
+          <div class="benefit-icon">🎯</div>
+          <h4>Matières personnalisées</h4>
+          <p>Choisissez les matières dans lesquelles vous donnez des cours</p>
+        </div>
+        
+        <div class="benefit-card">
+          <div class="benefit-icon">⭐</div>
+          <h4>Système de notation</h4>
+          <p>Les élèves évaluent vos cours pour améliorer votre réputation</p>
+        </div>
+        
+        <div class="benefit-card">
+          <div class="benefit-icon">💰</div>
+          <h4>Rémunération</h4>
+          <p>5€ par cours de 20 minutes dispensé. Vos gains s'accumulent dans votre cagnotte.</p>
+        </div>
+        
+        <div class="benefit-card">
+          <div class="benefit-icon">📊</div>
+          <h4>Statistiques détaillées</h4>
+          <p>Suivez vos performances et le nombre de cours donnés</p>
+        </div>
+        
+        <div class="benefit-card">
+          <div class="benefit-icon">🔔</div>
+          <h4>Notifications en temps réel</h4>
+          <p>Recevez les demandes de cours instantanément</p>
+        </div>
+      </div>
+      
+      <div class="teacher-stats">
+        <h4>Mes Statistiques</h4>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-number" id="prof-total-cours">0</div>
+            <div class="stat-label">Cours donnés</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number" id="prof-note-moyenne">-</div>
+            <div class="stat-label">Note moyenne</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number" id="prof-heures-totales">0h</div>
+            <div class="stat-label">Heures enseignées</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number" id="prof-matieres-actives">0</div>
+            <div class="stat-label">Matières actives</div>
+          </div>
+        </div>
+      </div>
+      
+      <button data-action="goTo" data-param="prof" class="btn-primary">Retour à mon espace</button>
+      <button data-action="logout" class="btn-secondary">Se déconnecter</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmation" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="confirm-title" data-focustrap="true">
+  <h2 id="confirm-title">Confirmer votre choix</h2>
+  <p id="confirm-text"></p>
+  <label for="matiere-confirm">Matière</label>
+  <select id="matiere-confirm" aria-label="Sélectionner une matière">
+    <option>Mathématiques</option>
+    <option>Français</option>
+    <option>Histoire-Géographie</option>
+    <option>Philosophie</option>
+    <option>Physique-Chimie</option>
+    <option>SVT (Sciences de la Vie et de la Terre)</option>
+    <option>Anglais</option>
+    <option>Espagnol</option>
+    <option>Allemand</option>
+    <option>Italien</option>
+    <option>Latin</option>
+    <option>Grec ancien</option>
+    <option>Économie et société</option>
+    <option>Sciences économiques et sociales</option>
+    <option>Arts plastiques</option>
+  </select>
+  <label for="niveau-confirm">Niveau</label>
+  <select id="niveau-confirm" aria-label="Sélectionner un niveau">
+    <option>CP</option>
+    <option>CE1</option>
+    <option>CE2</option>
+    <option>CM1</option>
+    <option>CM2</option>
+    <option>6e</option>
+    <option>5e</option>
+    <option>4e</option>
+    <option>3e</option>
+    <option>2nde</option>
+    <option>1ère</option>
+    <option>Terminale</option>
+  </select>
+  <button data-action="confirmChoice" aria-label="Confirmer votre sélection">✓ Confirmer</button>
+  <button data-action="cancelChoice" aria-label="Annuler et revenir">✕ Annuler</button>
+</div>
+
+<div id="modal-overlay" class="modal-overlay hidden"></div>
+
+<div id="search" class="page hidden">
+  <h2 id="search-title">Recherche en cours...</h2>
+  <p id="search-text">Recherche d'un partenaire disponible.</p>
+  
+  <div id="world-map-container">
+    <h3>🌍 Utilisateurs Connectés à Travers le Monde 🌍</h3>
+    <div id="world-map"></div>
+  </div>
+  
+  <button data-action="stopSearch">Arrêter la recherche</button>
+</div>
+
+<div id="profile" class="page hidden">
+  <h2 id="profile-title">Profil trouvé</h2>
+  <p id="profile-info"></p>
+  <button data-action="acceptConnection">Accepter</button>
+  <button data-action="refuseConnection">Refuser</button>
+</div>
+
+<div id="call" class="page hidden">
+  <h2 id="call-title">Appel en cours</h2>
+  <p id="call-status">Connexion établie.</p>
+  <p>Lien Google Meet : <a href="#" id="meet-link" target="_blank">Ouvrir Meet</a></p>
+  <p id="meet-info"></p>
+  <button data-action="copyMeetLink">Copier le lien</button>
+  <button data-action="endCall">Terminer l'appel</button>
+</div>
+
+<div id="rating" class="page hidden">
+  <h2 id="rating-title">Noter l'appel</h2>
+  <div id="stars" role="group" aria-label="Évaluation par étoiles (1 à 5)">
+    <button data-action="rate" data-param="1" aria-label="1 étoile">⭐</button>
+    <button data-action="rate" data-param="2" aria-label="2 étoiles">⭐</button>
+    <button data-action="rate" data-param="3" aria-label="3 étoiles">⭐</button>
+    <button data-action="rate" data-param="4" aria-label="4 étoiles">⭐</button>
+    <button data-action="rate" data-param="5" aria-label="5 étoiles">⭐</button>
+  </div>
+  <button data-action="submitRating" aria-label="Envoyer l'évaluation">✓ Soumettre</button>
+</div>
+
+<div id="prof" class="page hidden">
+  <h2 id="prof-title">Professeur</h2>
+  <p id="prof-matiere">Matières enseignées :</p>
+  <div id="matieres-list">
+    <label><input type="checkbox" data-matiere="Mathématiques" data-action="toggleMatiere"> Mathématiques <span id="math-status">🔴 Indisponible</span></label>
+    <label><input type="checkbox" data-matiere="Français" data-action="toggleMatiere"> Français <span id="francais-status">🔴 Indisponible</span></label>
+    <label><input type="checkbox" data-matiere="Histoire-Géographie" data-action="toggleMatiere"> Histoire-Géographie <span id="histoire-status">🔴 Indisponible</span></label>
+    <label><input type="checkbox" data-matiere="Philosophie" data-action="toggleMatiere"> Philosophie <span id="philo-status">🔴 Indisponible</span></label>
+    <label><input type="checkbox" data-matiere="Physique-Chimie" data-action="toggleMatiere"> Physique-Chimie <span id="physique-status">🔴 Indisponible</span></label>
+    <label><input type="checkbox" data-matiere="SVT (Sciences de la Vie et de la Terre)" data-action="toggleMatiere"> SVT <span id="svt-status">🔴 Indisponible</span></label>
+    <label><input type="checkbox" data-matiere="Anglais" data-action="toggleMatiere"> Anglais <span id="anglais-status">🔴 Indisponible</span></label>
+    <label><input type="checkbox" data-matiere="Espagnol" data-action="toggleMatiere"> Espagnol <span id="espagnol-status">🔴 Indisponible</span></label>
+    <label><input type="checkbox" data-matiere="Allemand" data-action="toggleMatiere"> Allemand <span id="allemand-status">🔴 Indisponible</span></label>
+    <label><input type="checkbox" data-matiere="Italien" data-action="toggleMatiere"> Italien <span id="italien-status">🔴 Indisponible</span></label>
+    <label><input type="checkbox" data-matiere="Latin" data-action="toggleMatiere"> Latin <span id="latin-status">🔴 Indisponible</span></label>
+    <label><input type="checkbox" data-matiere="Grec ancien" data-action="toggleMatiere"> Grec ancien <span id="grec-status">🔴 Indisponible</span></label>
+    <label><input type="checkbox" data-matiere="Économie et société" data-action="toggleMatiere"> Économie et société <span id="economie-status">🔴 Indisponible</span></label>
+    <label><input type="checkbox" data-matiere="Sciences économiques et sociales" data-action="toggleMatiere"> SES <span id="ses-status">🔴 Indisponible</span></label>
+    <label><input type="checkbox" data-matiere="Arts plastiques" data-action="toggleMatiere"> Arts plastiques <span id="arts-status">🔴 Indisponible</span></label>
+  </div>
+  <button data-action="startProfWaiting">Commencer à attendre</button>
+</div>
+
+<div id="prof-waiting" class="page hidden">
+  <h2 id="waiting-title">En attente d'élèves...</h2>
+  <p>Disponible pour les matières sélectionnées.</p>
+  <button data-action="stopProfWaiting">Arrêter</button>
+</div>
+
+<footer class="global-footer">
+  <a href="mailto:lokin.officiel@gmail.com" class="footer-contact" aria-label="Contacter LOK IN">
+    ✉️ Nous contacter
+  </a>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
