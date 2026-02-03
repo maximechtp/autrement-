@@ -555,6 +555,63 @@ button.btn-secondary:hover {
   background: #10b981 !important;
 }
 
+/* Extra Courses Section */
+.extra-courses-section {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 30px;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(251, 191, 36, 0.05) 100%);
+  border-radius: 20px;
+  border: 2px solid #fbbf24;
+}
+
+.extra-courses-title {
+  font-size: 28px;
+  color: #333;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.extra-courses-subtitle {
+  color: #666;
+  font-size: 16px;
+  margin-bottom: 30px;
+}
+
+.extra-courses-card {
+  background: white;
+  border-radius: 15px;
+  padding: 30px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  border: 2px solid #fbbf24;
+}
+
+.extra-courses-header {
+  text-align: center;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.extra-courses-name {
+  font-size: 24px;
+  color: #333;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.extra-courses-price {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+}
+
+.extra-courses-price .price-amount {
+  font-size: 38px;
+  font-weight: 800;
+  color: #fbbf24;
+}
+
 @media (max-width: 768px) {
   .subscription-plans {
     grid-template-columns: 1fr;
@@ -562,6 +619,10 @@ button.btn-secondary:hover {
   
   .plan-popular {
     transform: scale(1);
+  }
+  
+  .extra-courses-section {
+    padding: 20px;
   }
 }
 

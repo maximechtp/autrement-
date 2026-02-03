@@ -11,6 +11,7 @@ let sessionData = {
   isLoggedIn: false,
   userPhoto: null,
   isSubscribed: false,
+  subscriptionType: null, // 'standard', 'premium', or null
   usageCount: 0,
   // Teacher data
   isTeacher: false,
@@ -268,22 +269,31 @@ function clearSessionStorage() {
 }
 
 function checkSubscription(email) {
-  // TODO: Remplacer par un appel API backend réel
+  // TODO: Remplacer par un appel API backend réel pour vérifier l'abonnement via Stripe
   // Exemple: fetch('/api/check-subscription', { method: 'POST', body: JSON.stringify({ email }) })
   
   // Pour la démo, simulation avec une liste d'emails abonnés
-  const subscribedEmails = [
-    'abonne@example.com',
-    'premium@gmail.com',
-    'subscriber@test.com'
-  ];
+  const subscribedEmails = {
+    'abonne@example.com': 'standard',
+    'premium@gmail.com': 'premium',
+    'subscriber@test.com': 'standard',
+    'test@premium.com': 'premium'
+  };
   
   // Vérifier si l'email est dans la liste des abonnés
-  const isSubscribed = subscribedEmails.includes(email?.toLowerCase());
+  const subscriptionType = subscribedEmails[email?.toLowerCase()] || null;
   
-  console.log(`Subscription check for ${email}: ${isSubscribed ? 'SUBSCRIBED' : 'NOT SUBSCRIBED'}`);
+  if (subscriptionType) {
+    sessionData.isSubscribed = true;
+    sessionData.subscriptionType = subscriptionType;
+    console.log(`Subscription check for ${email}: ${subscriptionType.toUpperCase()}`);
+  } else {
+    sessionData.isSubscribed = false;
+    sessionData.subscriptionType = null;
+    console.log(`Subscription check for ${email}: NOT SUBSCRIBED`);
+  }
   
-  return isSubscribed;
+  return sessionData.isSubscribed;
 }
 
 function updateUserAvatar() {
@@ -356,8 +366,22 @@ function showUserProfile() {
   // Update plan buttons based on current subscription
   updatePlanButtons();
   
+  // Show/hide extra courses section for Premium subscribers
+  updateExtraCoursesVisibility();
+  
   // Navigate to profile page
   goTo('user-profile');
+}
+
+function updateExtraCoursesVisibility() {
+  const extraCoursesSection = document.getElementById('extra-courses-section');
+  if (extraCoursesSection) {
+    if (sessionData.subscriptionType === 'premium') {
+      extraCoursesSection.classList.remove('hidden');
+    } else {
+      extraCoursesSection.classList.add('hidden');
+    }
+  }
 }
 
 function updatePlanButtons() {
@@ -377,8 +401,23 @@ function updatePlanButtons() {
       freeButton.textContent = 'Plan actuel';
       freeButton.classList.add('plan-current');
     }
+  } else if (sessionData.subscriptionType === 'standard') {
+    // Standard plan is current
+    const standardButton = document.querySelector('.plan-popular .plan-button');
+    if (standardButton) {
+      standardButton.disabled = true;
+      standardButton.textContent = 'Plan actuel';
+      standardButton.classList.add('plan-current');
+    }
+  } else if (sessionData.subscriptionType === 'premium') {
+    // Premium plan is current
+    const premiumButton = document.querySelector('.plan-premium .plan-button');
+    if (premiumButton) {
+      premiumButton.disabled = true;
+      premiumButton.textContent = 'Plan actuel';
+      premiumButton.classList.add('plan-current');
+    }
   }
-  // TODO: Mark other plans as current based on user's actual subscription
 }
 
 function showTeacherProfile() {
