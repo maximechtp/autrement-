@@ -24,6 +24,18 @@ let sessionData = {
 // Stack to track navigation history
 let navigationHistory = [];
 
+// WebSocket connection
+let ws = null;
+let wsConnected = false;
+
+// Geolocation data
+let userLocation = {
+  lat: null,
+  lng: null,
+  hasPermission: false,
+  permissionAsked: false
+};
+
 // ===== USAGE LIMIT MANAGEMENT =====
 const USAGE_LIMITS = {
   chat: 3,
@@ -1109,19 +1121,31 @@ document.addEventListener("DOMContentLoaded", () => {
         break;
 
       case "chooseOption":
+        console.log("chooseOption clicked with param:", param);
+        console.log("User logged in:", sessionData.isLoggedIn);
+        console.log("User email:", sessionData.email);
+        
         // Vérifier la limite d'utilisation avant de continuer
         if (!sessionData.isSubscribed) {
           // Déterminer le type d'activité
           let activityType = param === 'chat' ? 'chat' : (param === 'debat' ? 'debat' : 'cours');
           
-          const usageStatus = checkUsageLimit(sessionData.email, activityType);
+          console.log("Checking usage limit for:", activityType);
+          
+          // Utiliser un email par défaut si l'utilisateur n'est pas connecté
+          const emailToCheck = sessionData.email || 'anonymous_user';
+          
+          const usageStatus = checkUsageLimit(emailToCheck, activityType);
+          console.log("Usage status:", usageStatus);
+          
           if (!usageStatus.allowed) {
+            console.log("Usage limit reached, showing limit page");
             showUsageLimitPage(activityType);
             break;
           }
           
           // Incrémenter le compteur
-          incrementUsage(sessionData.email, activityType);
+          incrementUsage(emailToCheck, activityType);
           
           // Afficher un message sur les essais restants
           if (usageStatus.remaining <= 1) {
@@ -1132,11 +1156,13 @@ document.addEventListener("DOMContentLoaded", () => {
         
         // For courses, show option confirmation first
         if (param === "cours") {
+          console.log("Course option selected, opening confirmation modal");
           sessionData.option = param;
-          // Aller directement à la sélection de matière
-          goTo("matiere-selection");
+          // Ouvrir directement la modal de confirmation pour choisir matière et niveau
+          openConfirmation(param);
         } else if (param === "chat" || param === "debat") {
           // For chat and debate, show language selection first
+          console.log("Chat/Debat option selected, going to language selection");
           sessionData.option = param;
           goTo("langue-selection");
           updateLanguageTitle(param);
@@ -1210,6 +1236,8 @@ document.addEventListener("DOMContentLoaded", () => {
         break;
 
       case "stopSearch":
+        // Fermer proprement la connexion WebSocket
+        disconnectWebSocket();
         goTo("home");
         resetSession();
         break;
@@ -1333,18 +1361,28 @@ function goTo(pageId) {
     cleanupWorldMap();
   }
   
-  // Load course requests when accessing professor page
-  if (pageId === "prof" && sessionData.isTeacher) {
-    setTimeout(() => {
-      loadCourseRequests();
-      loadAuthorizedMatieres();
-      updateCagnotteDisplay();
-    }, 100);
-  }
-  
   const page = document.getElementById(pageId);
   if (page) {
     page.classList.remove("hidden");
+    
+    // Initialize map AFTER the search page is visible
+    if (pageId === "search") {
+      console.log("🗺️ Search page now visible, initializing map...");
+      setTimeout(() => {
+        initializeWorldMap();
+        connectWebSocket();
+        requestGeolocation();
+      }, 300);
+    }
+    
+    // Load course requests when accessing professor page
+    if (pageId === "prof" && sessionData.isTeacher) {
+      setTimeout(() => {
+        loadCourseRequests();
+        loadAuthorizedMatieres();
+        updateCagnotteDisplay();
+      }, 100);
+    }
   } else {
     console.error("Page introuvable :", pageId);
   }
@@ -1458,6 +1496,9 @@ function showOptionConfirmation(option) {
 }
 
 function openConfirmation(option) {
+  console.log("openConfirmation called with:", option);
+  console.log("sessionData:", sessionData);
+  
   const confirmText = `Vous avez choisi l'option : ${option}${sessionData.langue ? ` en ${sessionData.langue}` : ''}`;
   
   document.getElementById("confirm-text").textContent = confirmText;
@@ -1466,12 +1507,15 @@ function openConfirmation(option) {
   if (sessionData.option === "chat" || sessionData.option === "debat") {
     document.getElementById("matiere-confirm").style.display = "none";
     document.getElementById("niveau-confirm").style.display = "none";
+    console.log("Hidden matiere/niveau selectors for chat/debat");
   } else {
     document.getElementById("matiere-confirm").style.display = "block";
     document.getElementById("niveau-confirm").style.display = "block";
+    console.log("Showing matiere/niveau selectors for cours");
   }
   
   // Open modal using ModalManager
+  console.log("Opening modal...");
   modalManager.open(document.activeElement);
 }
 
@@ -1479,9 +1523,7 @@ function openConfirmation(option) {
 function startSearching() {
   console.log("Starting search with:", sessionData);
   
-  // Initialize world map when search starts
-  initializeWorldMap();
-  
+  // Map initialization now happens in goTo()
   // Simulate search after 3 seconds
   setTimeout(() => {
     showFoundProfile();
@@ -1491,9 +1533,7 @@ function startSearching() {
 function startSearchingTeacher() {
   console.log("Starting teacher search for:", sessionData.matiere, sessionData.niveau);
   
-  // Initialize world map when search starts
-  initializeWorldMap();
-  
+  // Map initialization now happens in goTo()
   // Simuler la recherche d'un professeur (plus rapide)
   setTimeout(() => {
     showFoundTeacher();
@@ -1616,19 +1656,24 @@ function resetSession() {
 }
 
 /* ---------- World Map ---------- */
-let mapInstance = null;
+let map = null;
 let mapMarkers = [];
+let mapInitialized = false;
 
 function cleanupWorldMap() {
-  if (mapInstance) {
+  if (map) {
     // Remove all markers
-    mapMarkers.forEach(marker => mapInstance.removeLayer(marker));
+    mapMarkers.forEach(marker => map.removeLayer(marker));
     mapMarkers = [];
     
     // Remove map
-    mapInstance.remove();
-    mapInstance = null;
+    map.remove();
+    map = null;
+    mapInitialized = false;
   }
+  
+  // Déconnecter le WebSocket quand on quitte la page de recherche
+  disconnectWebSocket();
 }
 
 function generateRandomUsers(count = 12) {
@@ -1675,50 +1720,395 @@ function generateRandomUsers(count = 12) {
 
 function initializeWorldMap() {
   const mapElement = document.getElementById("world-map");
-  if (!mapElement) return;
+  if (!mapElement) {
+    console.warn("Element #world-map not found");
+    return;
+  }
 
-  // Clean up existing map
-  cleanupWorldMap();
+  // Éviter la double initialisation
+  if (mapInitialized && map) {
+    console.log("Map already initialized, recalculating size");
+    // Si la carte existe déjà, juste recalculer la taille
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+    return;
+  }
 
-  // Wait for DOM to be fully rendered
+  // Nettoyer toute instance existante (mais ne pas déconnecter WebSocket)
+  if (map) {
+    mapMarkers.forEach(marker => map.removeLayer(marker));
+    mapMarkers = [];
+    map.remove();
+    map = null;
+    mapInitialized = false;
+  }
+
+  console.log("Initializing world map...");
+
+  // Attendre que le DOM soit complètement rendu
   setTimeout(() => {
-    // Initialize map centered on Europe
-    mapInstance = L.map("world-map", {
-      dragging: false,
-      scrollWheelZoom: false,
-      doubleClickZoom: false,
-      touchZoom: false,
-      boxZoom: false,
-      keyboard: false,
-      zoomControl: false
-    }).setView([50, 10], 3);
+    const searchPage = document.getElementById("search");
+    
+    // Vérifier que la page search existe
+    if (!searchPage) {
+      console.warn("Search page not found");
+      return;
+    }
 
-    // Add map tiles
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/cv_light/{z}/{x}/{y}{r}.png", {
-      attribution: '© OpenStreetMap, © CartoDB',
-      maxZoom: 19,
-    }).addTo(mapInstance);
+    // Log pour debug
+    console.log("Search page hidden:", searchPage.classList.contains("hidden"));
 
-    // Generate realistic random users
-    const users = generateRandomUsers(12);
+    // Initialiser la carte centrée sur l'Europe avec OpenStreetMap
+    try {
+      map = L.map("world-map", {
+        dragging: false,
+        scrollWheelZoom: false,
+        doubleClickZoom: false,
+        touchZoom: false,
+        boxZoom: false,
+        keyboard: false,
+        zoomControl: false
+      }).setView([50, 10], 3);
 
-    // Add markers
-    users.forEach((user) => {
+      console.log("Map instance created");
+
+      // Ajouter les tuiles OpenStreetMap
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19,
+      }).addTo(map);
+
+      console.log("Tiles added");
+
+      // Générer des utilisateurs aléatoires réalistes
+      const users = generateRandomUsers(12);
+
+      // Ajouter les marqueurs
+      users.forEach((user) => {
+        const customIcon = L.divIcon({
+          className: "user-marker",
+          html: user.emoji,
+          iconSize: [32, 32],
+          iconAnchor: [16, 16]
+        });
+
+        const marker = L.marker([user.lat, user.lng], { icon: customIcon }).addTo(map);
+        marker.bindPopup(`<strong>${user.name}</strong><br/>Langue: ${user.lang}<br/><small>En ligne</small>`);
+        mapMarkers.push(marker);
+      });
+
+      console.log(`${mapMarkers.length} markers added`);
+
+      // Marquer comme initialisée
+      mapInitialized = true;
+
+      // Forcer la carte à recalculer sa taille après l'affichage
+      setTimeout(() => {
+        if (map) {
+          map.invalidateSize();
+          console.log("✅ Map fully initialized and sized");
+        }
+      }, 200);
+
+    } catch (error) {
+      console.error("❌ Error initializing map:", error);
+    }
+  }, 200);
+}
+
+/**
+ * Ajoute un marqueur utilisateur sur la carte Leaflet
+ * @param {number} lat - Latitude du marqueur
+ * @param {number} lng - Longitude du marqueur
+ * @param {string} label - Nom/libellé de l'utilisateur à afficher
+ */
+function addUserMarker(lat, lng, label) {
+  // Ne rien faire si la carte n'est pas initialisée
+  if (!map || !mapInitialized) {
+    console.warn('Cannot add marker: map is not initialized yet');
+    return;
+  }
+
+  // Créer un marqueur avec un icône personnalisé
+  const customIcon = L.divIcon({
+    className: "user-marker",
+    html: "👤",
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
+  });
+
+  // Ajouter le marqueur sur la carte
+  const marker = L.marker([lat, lng], { icon: customIcon }).addTo(map);
+  
+  // Ajouter un popup avec le nom de l'utilisateur
+  marker.bindPopup(`<strong>${label}</strong><br/><small>Utilisateur en ligne</small>`);
+  
+  // Stocker le marqueur pour un nettoyage ultérieur si nécessaire
+  mapMarkers.push(marker);
+  
+  return marker;
+}
+
+// ===== GEOLOCATION =====
+/**
+ * Demande l'autorisation de géolocalisation à l'utilisateur
+ * Utilise l'API HTML5 Geolocation avec une précision raisonnable
+ */
+function requestGeolocation() {
+  // Ne demander qu'une seule fois
+  if (userLocation.permissionAsked) {
+    return Promise.resolve(userLocation.hasPermission);
+  }
+
+  return new Promise((resolve) => {
+    // Vérifier si la géolocalisation est disponible
+    if (!navigator.geolocation) {
+      console.warn('Géolocalisation non disponible sur ce navigateur');
+      userLocation.permissionAsked = true;
+      userLocation.hasPermission = false;
+      resolve(false);
+      return;
+    }
+
+    userLocation.permissionAsked = true;
+
+    // Options de géolocalisation (précision raisonnable)
+    const options = {
+      enableHighAccuracy: false, // Précision raisonnable, pas ultra-précise
+      timeout: 10000, // 10 secondes max
+      maximumAge: 300000 // Cache de 5 minutes acceptable
+    };
+
+    // Demander la position actuelle
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        // Succès : stocker les coordonnées
+        userLocation.lat = position.coords.latitude;
+        userLocation.lng = position.coords.longitude;
+        userLocation.hasPermission = true;
+
+        console.log('📍 Géolocalisation obtenue:', {
+          lat: userLocation.lat,
+          lng: userLocation.lng
+        });
+
+        // Envoyer au serveur WebSocket si connecté
+        if (wsConnected && ws) {
+          sendLocationToServer();
+        }
+
+        resolve(true);
+      },
+      (error) => {
+        // Erreur ou refus : ne pas bloquer l'interface
+        userLocation.hasPermission = false;
+        
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            console.log('ℹ️ Utilisateur a refusé la géolocalisation');
+            break;
+          case error.POSITION_UNAVAILABLE:
+            console.warn('⚠️ Position indisponible');
+            break;
+          case error.TIMEOUT:
+            console.warn('⏱️ Timeout de géolocalisation');
+            break;
+        }
+
+        // Ne pas bloquer, continuer sans géolocalisation
+        resolve(false);
+      },
+      options
+    );
+  });
+}
+
+/**
+ * Envoie la position de l'utilisateur au serveur WebSocket
+ */
+function sendLocationToServer() {
+  if (!ws || !wsConnected) {
+    console.warn('WebSocket non connecté');
+    return;
+  }
+
+  if (!userLocation.lat || !userLocation.lng) {
+    console.warn('Position non disponible');
+    return;
+  }
+
+  const userName = sessionData.isLoggedIn 
+    ? `${sessionData.prenom || ''} ${sessionData.nom || ''}`.trim() 
+    : 'Utilisateur anonyme';
+
+  const message = {
+    type: 'updatePosition',
+    name: userName || 'Utilisateur',
+    lat: userLocation.lat,
+    lng: userLocation.lng
+  };
+
+  ws.send(JSON.stringify(message));
+  console.log('📤 Position envoyée au serveur:', message);
+}
+
+// ===== WEBSOCKET =====
+/**
+ * Connecte au serveur WebSocket pour le partage de positions en temps réel
+ */
+function connectWebSocket() {
+  // Éviter les connexions multiples
+  if (ws && wsConnected) {
+    console.log('WebSocket déjà connecté');
+    return;
+  }
+
+  // Déterminer l'URL du serveur WebSocket
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'localhost:8080'
+    : window.location.host; // Utiliser le même host en production
+  
+  const wsUrl = `${wsProtocol}//${wsHost}`;
+
+  console.log(`🔌 Connexion au WebSocket: ${wsUrl}`);
+
+  try {
+    ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      wsConnected = true;
+      console.log('✅ WebSocket connecté');
+
+      // Demander la géolocalisation si pas encore fait
+      requestGeolocation().then((hasPermission) => {
+        if (hasPermission) {
+          sendLocationToServer();
+        } else {
+          console.log('ℹ️ Utilisation sans géolocalisation');
+        }
+      });
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        switch (data.type) {
+          case 'connected':
+            console.log('📱 Connecté avec ID:', data.clientId);
+            break;
+
+          case 'userList':
+            console.log(`👥 ${data.count} utilisateur(s) connecté(s)`);
+            
+            // Mettre à jour dynamiquement la carte avec les utilisateurs réels
+            if (map && mapInitialized) {
+              updateRealUserMarkers(data.users);
+            }
+            break;
+
+          case 'error':
+            console.error('❌ Erreur serveur:', data.message);
+            break;
+        }
+      } catch (error) {
+        console.error('Erreur traitement message WebSocket:', error);
+      }
+    };
+
+    ws.onclose = () => {
+      wsConnected = false;
+      console.log('🔌 WebSocket déconnecté');
+      
+      // Tentative de reconnexion après 5 secondes
+      setTimeout(() => {
+        if (document.getElementById('search') && !document.getElementById('search').classList.contains('hidden')) {
+          console.log('🔄 Tentative de reconnexion...');
+          connectWebSocket();
+        }
+      }, 5000);
+    };
+
+    ws.onerror = (error) => {
+      console.error('⚠️ Erreur WebSocket:', error);
+      wsConnected = false;
+    };
+
+  } catch (error) {
+    console.error('Erreur création WebSocket:', error);
+    wsConnected = false;
+  }
+}
+
+/**
+ * Déconnecte le WebSocket
+ */
+function disconnectWebSocket() {
+  if (ws) {
+    ws.close();
+    ws = null;
+    wsConnected = false;
+    console.log('🔌 WebSocket fermé manuellement');
+  }
+}
+
+// Stocker les marqueurs d'utilisateurs réels séparément
+let realUserMarkers = new Map();
+
+/**
+ * Met à jour les marqueurs des utilisateurs réels sur la carte
+ * @param {Array} users - Liste des utilisateurs connectés
+ */
+function updateRealUserMarkers(users) {
+  if (!map || !mapInitialized) return;
+
+  // Créer un Set des IDs d'utilisateurs actuels
+  const currentUserIds = new Set(users.map(u => u.id));
+
+  // Supprimer les marqueurs des utilisateurs déconnectés
+  realUserMarkers.forEach((marker, userId) => {
+    if (!currentUserIds.has(userId)) {
+      map.removeLayer(marker);
+      realUserMarkers.delete(userId);
+      console.log(`🗑️ Marqueur supprimé pour ${userId}`);
+    }
+  });
+
+  // Ajouter ou mettre à jour les marqueurs des utilisateurs connectés
+  users.forEach(user => {
+    if (!user.lat || !user.lng || !user.name) return;
+
+    // Si le marqueur existe déjà, le mettre à jour
+    if (realUserMarkers.has(user.id)) {
+      const marker = realUserMarkers.get(user.id);
+      const newLatLng = L.latLng(user.lat, user.lng);
+      
+      // Mettre à jour la position si elle a changé
+      if (!marker.getLatLng().equals(newLatLng)) {
+        marker.setLatLng(newLatLng);
+        console.log(`📍 Position mise à jour pour ${user.name}`);
+      }
+      
+      // Mettre à jour le popup
+      marker.setPopupContent(`<strong>${user.name}</strong><br/><small>En ligne</small>`);
+    } else {
+      // Créer un nouveau marqueur
       const customIcon = L.divIcon({
         className: "user-marker",
-        html: user.emoji,
+        html: "👤",
         iconSize: [32, 32],
         iconAnchor: [16, 16]
       });
 
-      const marker = L.marker([user.lat, user.lng], { icon: customIcon }).addTo(mapInstance);
-      marker.bindPopup(`<strong>${user.name}</strong><br/>Langue: ${user.lang}<br/><small>En ligne</small>`);
-      mapMarkers.push(marker);
-    });
-
-    // Force map to recalculate size
-    mapInstance.invalidateSize(true);
-  }, 100);
+      const marker = L.marker([user.lat, user.lng], { icon: customIcon }).addTo(map);
+      marker.bindPopup(`<strong>${user.name}</strong><br/><small>En ligne</small>`);
+      
+      realUserMarkers.set(user.id, marker);
+      console.log(`✅ Nouveau marqueur ajouté pour ${user.name}`);
+    }
+  });
 }
 
 // ===== FOOTER SCROLL DETECTION =====

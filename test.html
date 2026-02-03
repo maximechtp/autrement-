@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Test Cours 20 min</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 50px;
+      text-align: center;
+    }
+    button {
+      padding: 20px 40px;
+      font-size: 18px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    .info {
+      margin-top: 30px;
+      padding: 20px;
+      background: #f0f0f0;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Test du bouton "Cours 20 min"</h1>
+  
+  <button id="testBtn" data-action="chooseOption" data-param="cours">
+    📚 Cours 20 min (TEST)
+  </button>
+  
+  <div class="info">
+    <h3>Instructions :</h3>
+    <ol style="text-align: left; max-width: 600px; margin: 0 auto;">
+      <li>Ouvrez la console du navigateur (F12)</li>
+      <li>Cliquez sur le bouton ci-dessus</li>
+      <li>Vérifiez les messages dans la console</li>
+    </ol>
+  </div>
+  
+  <div id="output" style="margin-top: 30px; padding: 20px; background: #e8f5e9; border-radius: 8px;">
+    <h3>État actuel :</h3>
+    <p id="status">En attente du clic...</p>
+  </div>
+
+  <script>
+    console.log("✅ Test script loaded");
+    
+    // Simuler sessionData
+    let sessionData = {
+      isLoggedIn: false,
+      isSubscribed: false,
+      email: 'test@example.com',
+      option: null
+    };
+    
+    // Test de l'événement click
+    document.body.addEventListener("click", (event) => {
+      const target = event.target;
+      const action = target.dataset.action;
+      const param = target.dataset.param;
+
+      console.log("🖱️ CLICK detected");
+      console.log("Target:", target);
+      console.log("Action:", action);
+      console.log("Param:", param);
+      
+      document.getElementById('status').innerHTML = `
+        <strong>Clic détecté !</strong><br>
+        Action: ${action || 'non défini'}<br>
+        Param: ${param || 'non défini'}
+      `;
+
+      if (!action) {
+        console.warn("⚠️ No action found on clicked element");
+        return;
+      }
+
+      if (action === "chooseOption" && param === "cours") {
+        console.log("✅ Cours option detected!");
+        sessionData.option = param;
+        document.getElementById('status').innerHTML = `
+          <strong style="color: green;">✅ Succès !</strong><br>
+          Option: ${sessionData.option}<br>
+          La modal devrait s'ouvrir maintenant
+        `;
+        alert("Test réussi ! Dans l'app réelle, la modal de sélection s'ouvrirait ici.");
+      }
+    });
+    
+    console.log("✅ Event listener attached");
+  </script>
+</body>
+</html>
