@@ -472,35 +472,67 @@ function checkLoginRequired(targetPage) {
 
 // ===== GOOGLE SIGN-IN =====
 function handleGoogleSignIn(response) {
-  // Decode the JWT token to get user info
-  const userData = parseJwt(response.credential);
+  console.log('✅ Google Sign-In successful!');
   
-  // Store user data in session
-  sessionData.prenom = userData.given_name || '';
-  sessionData.nom = userData.family_name || '';
-  sessionData.email = userData.email || '';
-  sessionData.classe = ''; // Google doesn't provide class info
-  sessionData.googleUser = true;
-  sessionData.isLoggedIn = true;
-  sessionData.userPhoto = userData.picture || null;
-  
-  // Check subscription status
-  sessionData.isSubscribed = checkSubscription(userData.email);
-  
-  // Load usage data
-  sessionData.usageCount = getUsageData(userData.email);
-  
-  console.log('Google Sign-In successful:', userData);
-  console.log('Subscription status:', sessionData.isSubscribed);
-  console.log('Usage data:', sessionData.usageCount);
-  
-  // Sauvegarder la session
-  saveSessionToStorage();
-  
-  // Update avatar
-  updateUserAvatar();
-  
-  goTo("eleve-options");
+  try {
+    // Decode the JWT token to get user info
+    const payload = parseJwt(response.credential);
+    
+    console.log('👤 Utilisateur Google:', payload);
+    
+    const email = payload.email;
+    const prenom = payload.given_name || '';
+    const nom = payload.family_name || '';
+    const photoURL = payload.picture || null;
+    
+    // Créer ou mettre à jour l'utilisateur dans la base
+    const userData = {
+      email: email,
+      prenom: prenom,
+      nom: nom,
+      classe: '',
+      isTeacher: false,
+      photoURL: photoURL,
+      subscriptionType: null,
+      isSubscribed: false
+    };
+    
+    userDB.saveUser(userData).then(user => {
+      // Créer la session
+      userDB.createSession(user);
+      
+      // Mettre à jour sessionData
+      sessionData.prenom = user.prenom;
+      sessionData.nom = user.nom;
+      sessionData.email = user.email;
+      sessionData.classe = user.classe;
+      sessionData.googleUser = true;
+      sessionData.isLoggedIn = true;
+      sessionData.userPhoto = user.photoURL;
+      sessionData.isTeacher = user.isTeacher;
+      sessionData.isSubscribed = user.subscription.isActive;
+      sessionData.subscriptionType = user.subscription.type;
+      sessionData.usageCount = getUsageData(user.email);
+      
+      console.log('✅ Connexion Google réussie pour:', user.email);
+      console.log('📊 Statut abonnement:', sessionData.isSubscribed);
+      
+      // Sauvegarder la session
+      saveSessionToStorage();
+      
+      // Update avatar
+      updateUserAvatar();
+      
+      goTo("eleve-options");
+    }).catch(error => {
+      console.error('❌ Erreur sauvegarde utilisateur Google:', error);
+      alert('Erreur lors de la connexion. Veuillez réessayer.');
+    });
+    
+  } catch (error) {
+    console.error('❌ Error processing Google Sign-In response:', error);
+    alert('Erreur lors du traitement de la réponse Google. Veuillez réessayer.');
+  }
 }
 
 function parseJwt(token) {
@@ -523,65 +555,124 @@ function initGoogleSignIn() {
     btnGoogleLogin.addEventListener('click', () => {
       // Check if Google API is loaded
       if (typeof google === 'undefined' || !google.accounts) {
-        console.warn('Google API not loaded yet. Simulating sign-in for development...');
-        // Simulate Google Sign-In for development
-        simulateGoogleSignIn();
+        alert('⌛ Chargement de Google Sign-In en cours...\n\nVeuillez patienter quelques secondes et réessayer.');
+        console.warn('Google API not loaded yet. Please wait and try again.');
+        
+        // Attendre 2 secondes et réessayer automatiquement
+        setTimeout(() => {
+          if (typeof google !== 'undefined' && google.accounts) {
+            console.log('✅ Google API chargée, vous pouvez maintenant vous connecter');
+            alert('✅ Google Sign-In prêt ! Vous pouvez maintenant cliquer sur le bouton.');
+          }
+        }, 2000);
         return;
       }
       
       try {
+        console.log('🔑 Initialisation Google Sign-In...');
+        
         // Initialize and trigger Google Sign-In
         google.accounts.id.initialize({
           client_id: '1083063645018-a67vm1ajs7k735bv088vcr840l64ree2.apps.googleusercontent.com',
           callback: handleGoogleSignIn,
-          auto_select: false
+          auto_select: false,
+          cancel_on_tap_outside: false
         });
+        
+        // Afficher le prompt Google
         google.accounts.id.prompt((notification) => {
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            console.log('Google Sign-In prompt not displayed:', notification.getNotDisplayedReason());
-            // Fallback to simulation for development
-            simulateGoogleSignIn();
+          if (notification.isNotDisplayed()) {
+            console.log('⚠️ Google Sign-In prompt not displayed:', notification.getNotDisplayedReason());
+            
+            // Si le prompt ne s'affiche pas, essayer renderButton
+            const buttonDiv = document.createElement('div');
+            buttonDiv.style.position = 'fixed';
+            buttonDiv.style.top = '50%';
+            buttonDiv.style.left = '50%';
+            buttonDiv.style.transform = 'translate(-50%, -50%)';
+            buttonDiv.style.zIndex = '10000';
+            buttonDiv.style.background = 'white';
+            buttonDiv.style.padding = '30px';
+            buttonDiv.style.borderRadius = '10px';
+            buttonDiv.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
+            
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '✕ Fermer';
+            closeBtn.style.position = 'absolute';
+            closeBtn.style.top = '10px';
+            closeBtn.style.right = '10px';
+            closeBtn.style.border = 'none';
+            closeBtn.style.background = 'transparent';
+            closeBtn.style.cursor = 'pointer';
+            closeBtn.style.fontSize = '20px';
+            closeBtn.onclick = () => document.body.removeChild(buttonDiv);
+            
+            const googleBtnContainer = document.createElement('div');
+            googleBtnContainer.id = 'google-signin-button-temp';
+            
+            buttonDiv.appendChild(closeBtn);
+            buttonDiv.appendChild(googleBtnContainer);
+            document.body.appendChild(buttonDiv);
+            
+            google.accounts.id.renderButton(
+              googleBtnContainer,
+              { theme: 'outline', size: 'large', text: 'signin_with', width: 300 }
+            );
           }
         });
       } catch (error) {
-        console.error('Error initializing Google Sign-In:', error);
-        simulateGoogleSignIn();
+        console.error('❌ Error initializing Google Sign-In:', error);
+        alert('❌ Erreur lors de l\'initialisation de Google Sign-In.\n\nVeuillez vérifier votre connexion Internet et réessayer.');
       }
     });
   }
 }
 
-// Simulate Google Sign-In for development/testing
+// Simulate Google Sign-In for development/testing (DISABLED - Use real Google Auth)
+// Uncomment only for development without internet
 function simulateGoogleSignIn() {
-  const confirmed = confirm('Simulation de connexion Google\n\nVoulez-vous vous connecter avec un compte Google simulé?');
-  if (confirmed) {
-    // Simulate user data
-    sessionData.prenom = 'Utilisateur';
-    sessionData.nom = 'Google';
-    sessionData.email = 'user@gmail.com';
-    sessionData.classe = '';
+  console.warn('⚠️ Simulation Google Sign-In (mode développement)');
+  
+  const confirmed = confirm('MODE DÉVELOPPEMENT\n\nSimulation de connexion Google\n\nVoulez-vous continuer avec un compte simulé ?');
+  if (!confirmed) return;
+  
+  const email = prompt('Entrez un email pour la simulation:', 'test@gmail.com');
+  if (!email) return;
+  
+  // Simulate user data
+  const userData = {
+    email: email,
+    prenom: 'Utilisateur',
+    nom: 'Simulé',
+    classe: '',
+    isTeacher: false,
+    photoURL: null,
+    subscriptionType: null,
+    isSubscribed: false
+  };
+  
+  // Créer/mettre à jour dans la base
+  userDB.saveUser(userData).then(user => {
+    userDB.createSession(user);
+    
+    sessionData.prenom = user.prenom;
+    sessionData.nom = user.nom;
+    sessionData.email = user.email;
+    sessionData.classe = user.classe;
     sessionData.googleUser = true;
     sessionData.isLoggedIn = true;
-    sessionData.userPhoto = null;
+    sessionData.userPhoto = user.photoURL;
+    sessionData.isTeacher = user.isTeacher;
+    sessionData.isSubscribed = user.subscription.isActive;
+    sessionData.subscriptionType = user.subscription.type;
+    sessionData.usageCount = getUsageData(user.email);
     
-    // Check subscription status
-    sessionData.isSubscribed = checkSubscription(sessionData.email);
+    console.log('⚙️ Simulation: Google Sign-In successful');
     
-    // Load usage data
-    sessionData.usageCount = getUsageData(sessionData.email);
-    
-    console.log('Simulation: Google Sign-In successful');
-    console.log('Subscription status:', sessionData.isSubscribed);
-    console.log('Usage data:', sessionData.usageCount);
-    
-    // Sauvegarder la session
     saveSessionToStorage();
-    
-    // Update avatar
     updateUserAvatar();
-    
     goTo("eleve-options");
-  }
+  });
 }
 
 // ===== VALIDATION FORM =====
