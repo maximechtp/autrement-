@@ -517,13 +517,23 @@ function handleGoogleSignIn(response) {
       console.log('✅ Connexion Google réussie pour:', user.email);
       console.log('📊 Statut abonnement:', sessionData.isSubscribed);
       
+      // Fermer le modal Google s'il existe
+      if (activeGoogleModal && document.body.contains(activeGoogleModal)) {
+        document.body.removeChild(activeGoogleModal);
+        activeGoogleModal = null;
+        console.log('🔒 Modal Google fermé automatiquement');
+      }
+      
       // Sauvegarder la session
       saveSessionToStorage();
       
       // Update avatar
       updateUserAvatar();
       
-      goTo("eleve-options");
+      // Redirection après un court délai pour une transition fluide
+      setTimeout(() => {
+        goTo("eleve-options");
+      }, 100);
     }).catch(error => {
       console.error('❌ Erreur sauvegarde utilisateur Google:', error);
       alert('Erreur lors de la connexion. Veuillez réessayer.');
@@ -548,6 +558,9 @@ function parseJwt(token) {
     return {};
   }
 }
+
+// Stockage global du modal Google pour pouvoir le fermer après connexion
+let activeGoogleModal = null;
 
 function initGoogleSignIn() {
   const btnGoogleLogin = document.getElementById('btn-google-login');
@@ -576,7 +589,8 @@ function initGoogleSignIn() {
           client_id: '854092990889-0jri4gljn2tca49ke5m9oetucdrvjlfh.apps.googleusercontent.com',
           callback: handleGoogleSignIn,
           auto_select: false,
-          cancel_on_tap_outside: false
+          cancel_on_tap_outside: false,
+          ux_mode: 'popup' // Utiliser popup mode pour meilleur contrôle
         });
         
         // Afficher le prompt Google
@@ -602,10 +616,14 @@ function initGoogleSignIn() {
             buttonDiv.appendChild(googleBtnContainer);
             document.body.appendChild(buttonDiv);
             
+            // Stocker la référence globale
+            activeGoogleModal = buttonDiv;
+            
             // Fermer automatiquement après authentification ou au clic en dehors
             const closePopup = () => {
               if (document.body.contains(buttonDiv)) {
                 document.body.removeChild(buttonDiv);
+                activeGoogleModal = null;
               }
             };
             
@@ -1013,7 +1031,8 @@ function initGoogleSignInProfessor() {
           client_id: '854092990889-0jri4gljn2tca49ke5m9oetucdrvjlfh.apps.googleusercontent.com',
           callback: handleGoogleSignInProfessor,
           auto_select: false,
-          cancel_on_tap_outside: false
+          cancel_on_tap_outside: false,
+          ux_mode: 'popup' // Utiliser popup mode pour meilleur contrôle
         });
         
         // Afficher le prompt Google
@@ -1039,10 +1058,14 @@ function initGoogleSignInProfessor() {
             buttonDiv.appendChild(googleBtnContainer);
             document.body.appendChild(buttonDiv);
             
+            // Stocker la référence globale
+            activeGoogleModal = buttonDiv;
+            
             // Fermer automatiquement après authentification ou au clic en dehors
             const closePopup = () => {
               if (document.body.contains(buttonDiv)) {
                 document.body.removeChild(buttonDiv);
+                activeGoogleModal = null;
               }
             };
             
@@ -1114,13 +1137,23 @@ function handleGoogleSignInProfessor(response) {
       console.log('✅ Connexion Google réussie pour professeur:', user.email);
       console.log('📊 Statut abonnement:', sessionData.isSubscribed);
       
+      // Fermer le modal Google s'il existe
+      if (activeGoogleModal && document.body.contains(activeGoogleModal)) {
+        document.body.removeChild(activeGoogleModal);
+        activeGoogleModal = null;
+        console.log('🔒 Modal Google fermé automatiquement');
+      }
+      
       // Sauvegarder la session
       saveSessionToStorage();
       
       // Update avatar
       updateUserAvatar();
       
-      goTo("prof");
+      // Redirection après un court délai pour une transition fluide
+      setTimeout(() => {
+        goTo("prof");
+      }, 100);
     }).catch(error => {
       console.error('❌ Erreur sauvegarde professeur Google:', error);
       alert('Erreur lors de la connexion. Veuillez réessayer.');
