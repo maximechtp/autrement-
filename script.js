@@ -1176,52 +1176,6 @@ function simulateGoogleSignInProfessor() {
     goTo("prof");
   });
 }
-    updateUserAvatar();
-    
-    goTo("prof");
-  }
-}
-
-function setupFormValidation() {
-  const form = document.getElementById('form-eleve');
-  const inputs = form.querySelectorAll('input');
-  
-  inputs.forEach(input => {
-    input.addEventListener('input', validateForm);
-    input.addEventListener('change', validateForm);
-  });
-
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    if (validateForm()) {
-      sessionData.prenom = sanitizeText(document.getElementById('prenom').value);
-      sessionData.nom = sanitizeText(document.getElementById('nom').value);
-      sessionData.email = sanitizeText(document.getElementById('email').value);
-      sessionData.password = document.getElementById('password').value; // En production, hasher le mot de passe
-      sessionData.classe = sanitizeText(document.getElementById('classe').value);
-      sessionData.isLoggedIn = true;
-      sessionData.userPhoto = null;
-      
-      // Check subscription status
-      sessionData.isSubscribed = checkSubscription(sessionData.email);
-      
-      // Load usage data
-      sessionData.usageCount = getUsageData(sessionData.email);
-      
-      console.log('Form login successful');
-      console.log('Subscription status:', sessionData.isSubscribed);
-      console.log('Usage data:', sessionData.usageCount);
-      
-      // Sauvegarder la session
-      saveSessionToStorage();
-      
-      // Update avatar
-      updateUserAvatar();
-      
-      goTo("eleve-options");
-    }
-  });
-}
 
 // ===== MODAL MANAGER - ACCESSIBILITY & FOCUS MANAGEMENT =====
 class ModalManager {
