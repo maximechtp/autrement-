@@ -573,7 +573,7 @@ function initGoogleSignIn() {
         
         // Initialize and trigger Google Sign-In
         google.accounts.id.initialize({
-          client_id: '1083063645018-a67vm1ajs7k735bv088vcr840l64ree2.apps.googleusercontent.com',
+          client_id: '854092990889-0jri4gljn2tca49ke5m9oetucdrvjlfh.apps.googleusercontent.com',
           callback: handleGoogleSignIn,
           auto_select: false,
           cancel_on_tap_outside: false
@@ -995,7 +995,7 @@ function initGoogleSignInProfessor() {
       
       try {
         google.accounts.id.initialize({
-          client_id: '1083063645018-a67vm1ajs7k735bv088vcr840l64ree2.apps.googleusercontent.com',
+          client_id: '854092990889-0jri4gljn2tca49ke5m9oetucdrvjlfh.apps.googleusercontent.com',
           callback: handleGoogleSignInProfessor,
           auto_select: false
         });
