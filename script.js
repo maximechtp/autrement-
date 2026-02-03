@@ -659,58 +659,86 @@ function setupFormValidation() {
     input.addEventListener('change', validateForm);
   });
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (validateForm()) {
-      sessionData.prenom = sanitizeText(document.getElementById('prenom').value);
-      sessionData.nom = sanitizeText(document.getElementById('nom').value);
-      sessionData.email = sanitizeText(document.getElementById('email').value);
-      sessionData.password = document.getElementById('password').value; // En production, hasher le mot de passe
-      sessionData.classe = sanitizeText(document.getElementById('classe').value);
-      sessionData.isLoggedIn = true;
-      sessionData.userPhoto = null;
-      sessionData.isTeacher = false;
+      const prenom = sanitizeText(document.getElementById('prenom').value);
+      const nom = sanitizeText(document.getElementById('nom').value);
+      const email = sanitizeText(document.getElementById('email').value);
+      const password = document.getElementById('password').value;
+      const classe = sanitizeText(document.getElementById('classe').value);
       
-      // Vérifier si c'est le compte admin Maxime Chantepie
-      if (sessionData.email.toLowerCase() === 'maxime.chantepiee@gmail.com') {
-        if (sessionData.password !== 'Prmt6g72') {
-          alert('Mot de passe incorrect pour ce compte.');
-          return;
-        }
-        console.log('Connexion du compte administrateur: Maxime Chantepie');
-        // Accorder tous les privilèges élève
-        sessionData.isSubscribed = true;
+      try {
+        // Vérifier si l'utilisateur existe déjà dans la base
+        let user = userDB.getUserByEmail(email);
         
-        // Réinitialiser les compteurs d'usage (accès illimité)
-        sessionData.usageCount = { chat: 0, debat: 0, cours: 0 };
-        setUsageData(sessionData.email, sessionData.usageCount);
-        
-        // Accorder toutes les matières si c'est un professeur
-        if (sessionData.isTeacher) {
-          const allMatieres = ['Mathématiques', 'Français', 'Histoire-Géographie', 'Philosophie', 
-                               'Physique-Chimie', 'SVT', 'Anglais', 'Espagnol', 'Allemand', 
-                               'Italien', 'Latin', 'Grec ancien', 'Économie', 'SES', 'Arts plastiques'];
-          setTeacherAuthorizations(sessionData.email, allMatieres);
+        if (!user) {
+          // Nouveau compte - créer l'utilisateur
+          console.log('📝 Création nouveau compte élève:', email);
+          
+          const userData = {
+            email: email,
+            prenom: prenom,
+            nom: nom,
+            classe: classe,
+            isTeacher: false,
+            photoURL: null,
+            subscriptionType: null,
+            isSubscribed: false
+          };
+          
+          // Compte admin avec privilèges
+          if (email.toLowerCase() === 'maxime.chantepiee@gmail.com') {
+            if (password !== 'Prmt6g72') {
+              alert('Mot de passe incorrect pour ce compte.');
+              return;
+            }
+            console.log('✅ Connexion compte administrateur');
+            userData.subscriptionType = 'premium';
+            userData.isSubscribed = true;
+          }
+          
+          user = await userDB.saveUser(userData);
+        } else {
+          // Utilisateur existant - mettre à jour la dernière connexion
+          console.log('👤 Connexion utilisateur existant:', email);
+          user.lastLogin = new Date().toISOString();
+          await userDB.saveUser(user);
         }
-      } else {
-        // Check subscription status for other accounts
-        sessionData.isSubscribed = checkSubscription(sessionData.email);
+        
+        // Créer la session
+        userDB.createSession(user);
+        
+        // Mettre à jour sessionData
+        sessionData.prenom = user.prenom;
+        sessionData.nom = user.nom;
+        sessionData.email = user.email;
+        sessionData.classe = user.classe;
+        sessionData.isLoggedIn = true;
+        sessionData.userPhoto = user.photoURL;
+        sessionData.isTeacher = user.isTeacher;
+        sessionData.isSubscribed = user.subscription.isActive;
+        sessionData.subscriptionType = user.subscription.type;
+        
+        // Load usage data
+        sessionData.usageCount = getUsageData(user.email);
+        
+        console.log('✅ Connexion réussie');
+        console.log('📊 Statut abonnement:', sessionData.isSubscribed);
+        console.log('📈 Données usage:', sessionData.usageCount);
+        
+        // Sauvegarder la session
+        saveSessionToStorage();
+        
+        // Update avatar
+        updateUserAvatar();
+        
+        goTo("eleve-options");
+        
+      } catch (error) {
+        console.error('❌ Erreur connexion:', error);
+        alert('Erreur lors de la connexion. Veuillez réessayer.');
       }
-      
-      // Load usage data
-      sessionData.usageCount = getUsageData(sessionData.email);
-      
-      console.log('Form login successful');
-      console.log('Subscription status:', sessionData.isSubscribed);
-      console.log('Usage data:', sessionData.usageCount);
-      
-      // Sauvegarder la session
-      saveSessionToStorage();
-      
-      // Update avatar
-      updateUserAvatar();
-      
-      goTo("eleve-options");
     }
   });
   
@@ -777,48 +805,89 @@ function setupProfessorFormValidation() {
     input.addEventListener('change', validateProfessorForm);
   });
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (validateProfessorForm()) {
-      sessionData.prenom = sanitizeText(document.getElementById('prof-prenom').value);
-      sessionData.nom = sanitizeText(document.getElementById('prof-nom').value);
-      sessionData.email = sanitizeText(document.getElementById('prof-email').value);
-      sessionData.password = document.getElementById('prof-password').value;
-      sessionData.isLoggedIn = true;
-      sessionData.userPhoto = null;
-      sessionData.isTeacher = true;
-      sessionData.classe = 'Professeur';
+      const prenom = sanitizeText(document.getElementById('prof-prenom').value);
+      const nom = sanitizeText(document.getElementById('prof-nom').value);
+      const email = sanitizeText(document.getElementById('prof-email').value);
+      const password = document.getElementById('prof-password').value;
       
-      // Vérifier si c'est le compte admin Maxime Chantepie
-      if (sessionData.email.toLowerCase() === 'maxime.chantepiee@gmail.com') {
-        if (sessionData.password !== 'Prmt6g72') {
-          alert('Mot de passe incorrect pour ce compte.');
-          return;
-        }
-        console.log('Connexion du compte administrateur professeur: Maxime Chantepie');
-        // Accorder tous les privilèges
-        sessionData.isSubscribed = true;
+      try {
+        // Vérifier si l'utilisateur existe déjà dans la base
+        let user = userDB.getUserByEmail(email);
         
-        // Accorder toutes les matières
-        const allMatieres = ['Mathématiques', 'Français', 'Histoire-Géographie', 'Philosophie', 
-                             'Physique-Chimie', 'SVT', 'Anglais', 'Espagnol', 'Allemand', 
-                             'Italien', 'Latin', 'Grec ancien', 'Économie', 'SES', 'Arts plastiques'];
-        setTeacherAuthorizations(sessionData.email, allMatieres);
-      } else {
-        // Check subscription status
-        sessionData.isSubscribed = checkSubscription(sessionData.email);
+        if (!user) {
+          // Nouveau compte professeur
+          console.log('📝 Création nouveau compte professeur:', email);
+          
+          const userData = {
+            email: email,
+            prenom: prenom,
+            nom: nom,
+            classe: 'Professeur',
+            isTeacher: true,
+            photoURL: null,
+            subscriptionType: null,
+            isSubscribed: false,
+            authorizedSubjects: [],
+            availableSubjects: [],
+            courses: [],
+            totalEarnings: 0,
+            rating: null
+          };
+          
+          // Compte admin avec tous les privilèges
+          if (email.toLowerCase() === 'maxime.chantepiee@gmail.com') {
+            if (password !== 'Prmt6g72') {
+              alert('Mot de passe incorrect pour ce compte.');
+              return;
+            }
+            console.log('✅ Connexion compte administrateur professeur');
+            userData.subscriptionType = 'premium';
+            userData.isSubscribed = true;
+            userData.authorizedSubjects = ['Mathématiques', 'Français', 'Histoire-Géographie', 'Philosophie', 
+                                          'Physique-Chimie', 'SVT', 'Anglais', 'Espagnol', 'Allemand', 
+                                          'Italien', 'Latin', 'Grec ancien', 'Économie', 'SES', 'Arts plastiques'];
+          }
+          
+          user = await userDB.saveUser(userData);
+        } else {
+          // Utilisateur existant
+          console.log('👤 Connexion professeur existant:', email);
+          user.lastLogin = new Date().toISOString();
+          await userDB.saveUser(user);
+        }
+        
+        // Créer la session
+        userDB.createSession(user);
+        
+        // Mettre à jour sessionData
+        sessionData.prenom = user.prenom;
+        sessionData.nom = user.nom;
+        sessionData.email = user.email;
+        sessionData.classe = 'Professeur';
+        sessionData.isLoggedIn = true;
+        sessionData.userPhoto = user.photoURL;
+        sessionData.isTeacher = true;
+        sessionData.isSubscribed = user.subscription.isActive;
+        sessionData.subscriptionType = user.subscription.type;
+        
+        console.log('✅ Connexion professeur réussie');
+        console.log('📊 Statut abonnement:', sessionData.isSubscribed);
+        
+        // Sauvegarder la session
+        saveSessionToStorage();
+        
+        // Update avatar
+        updateUserAvatar();
+        
+        goTo("prof");
+        
+      } catch (error) {
+        console.error('❌ Erreur connexion professeur:', error);
+        alert('Erreur lors de la connexion. Veuillez réessayer.');
       }
-      
-      console.log('Professor login successful');
-      console.log('Subscription status:', sessionData.isSubscribed);
-      
-      // Sauvegarder la session
-      saveSessionToStorage();
-      
-      // Update avatar
-      updateUserAvatar();
-      
-      goTo("prof");
     }
   });
 }
@@ -1063,15 +1132,39 @@ document.addEventListener("DOMContentLoaded", () => {
   // Setup footer scroll detection
   initializeFooterScroll();
   
-  // Restaurer la session si elle existe
-  if (restoreSessionFromStorage()) {
-    console.log('Session restaurée automatiquement');
+  // Restaurer la session depuis la base de données
+  const user = userDB.getCurrentUser();
+  if (user) {
+    console.log('🔄 Restauration session automatique pour:', user.email);
+    
+    // Restaurer sessionData depuis la base de données
+    sessionData.prenom = user.prenom;
+    sessionData.nom = user.nom;
+    sessionData.email = user.email;
+    sessionData.classe = user.classe;
+    sessionData.isLoggedIn = true;
+    sessionData.userPhoto = user.photoURL;
+    sessionData.isTeacher = user.isTeacher;
+    sessionData.isSubscribed = user.subscription.isActive;
+    sessionData.subscriptionType = user.subscription.type;
+    sessionData.usageCount = getUsageData(user.email);
+    
+    console.log('✅ Session restaurée automatiquement');
+    console.log('📊 Abonnement actif:', sessionData.isSubscribed);
+    
     updateUserAvatar();
-    goTo("eleve-options");
+    
+    // Rediriger vers la bonne page selon le type d'utilisateur
+    if (user.isTeacher) {
+      goTo("prof");
+    } else {
+      goTo("eleve-options");
+    }
     return;
   }
   
   // Sinon, afficher la page d'accueil
+  console.log('ℹ️ Aucune session active');
   goTo("home");
 
   document.body.addEventListener("click", (event) => {
@@ -1453,6 +1546,9 @@ function handleLogout() {
   const confirmed = confirm('Voulez-vous vraiment vous déconnecter ?');
   
   if (confirmed) {
+    // Déconnecter de la base de données
+    userDB.logout();
+    
     // Reset session data
     sessionData = {
       option: null,
@@ -1464,7 +1560,9 @@ function handleLogout() {
       isLoggedIn: false,
       userPhoto: null,
       isSubscribed: false,
-      usageCount: {}
+      subscriptionType: null,
+      usageCount: {},
+      isTeacher: false
     };
     
     // Nettoyer le sessionStorage
@@ -1477,10 +1575,13 @@ function handleLogout() {
     const form = document.getElementById('form-eleve');
     if (form) form.reset();
     
+    const formProf = document.getElementById('form-professeur');
+    if (formProf) formProf.reset();
+    
     // Navigate to home
     goTo('home');
     
-    console.log('User logged out');
+    console.log('👋 Déconnexion réussie');
   }
 }
 
@@ -2548,3 +2649,69 @@ function demanderAutorisationMatieres() {
   
   window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
 }
+
+// ===== STRIPE INTEGRATION =====
+
+/**
+ * Simule un paiement Stripe réussi (pour tests)
+ * En production, cette fonction sera appelée via webhook Stripe
+ */
+function simulateStripePayment(email, subscriptionType) {
+  console.log('💳 Simulation paiement Stripe');
+  console.log('📧 Email:', email);
+  console.log('📦 Type:', subscriptionType);
+  
+  if (!email) {
+    console.error('Email requis');
+    return;
+  }
+  
+  // Calculer la date de fin
+  let endDate;
+  if (subscriptionType === 'standard') {
+    endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 jours
+  } else if (subscriptionType === 'premium') {
+    endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 an
+  } else {
+    console.error('Type invalide:', subscriptionType);
+    return;
+  }
+  
+  // Mettre à jour l'abonnement dans la base
+  const subscriptionData = {
+    type: subscriptionType,
+    isActive: true,
+    startDate: new Date().toISOString(),
+    endDate: endDate.toISOString(),
+    stripeCustomerId: 'cus_simulated_' + Date.now()
+  };
+  
+  userDB.updateSubscription(email, subscriptionData)
+    .then(user => {
+      console.log('✅ Abonnement activé !');
+      console.log('👤 Utilisateur:', user);
+      
+      // Mettre à jour sessionData si c'est l'utilisateur connecté
+      if (sessionData.email === email) {
+        sessionData.isSubscribed = true;
+        sessionData.subscriptionType = subscriptionType;
+        console.log('🔄 Session mise à jour');
+      }
+      
+      // Afficher un message
+      alert(`🎉 Abonnement ${subscriptionType.toUpperCase()} activé avec succès !\n\nVous pouvez maintenant profiter de tous les avantages.`);
+      
+      // Rafraîchir la page pour afficher le nouveau statut
+      location.reload();
+    })
+    .catch(error => {
+      console.error('❌ Erreur activation abonnement:', error);
+      alert('Erreur lors de l\'activation de l\'abonnement');
+    });
+}
+
+// Rendre disponible globalement pour tests console
+window.simulateStripePayment = simulateStripePayment;
+
+console.log('💳 Stripe integration loaded');
+console.log('🧪 Test: simulateStripePayment("email@example.com", "premium")');
