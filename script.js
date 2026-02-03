@@ -596,23 +596,27 @@ function initGoogleSignIn() {
             buttonDiv.style.borderRadius = '10px';
             buttonDiv.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
             
-            const closeBtn = document.createElement('button');
-            closeBtn.textContent = '✕ Fermer';
-            closeBtn.style.position = 'absolute';
-            closeBtn.style.top = '10px';
-            closeBtn.style.right = '10px';
-            closeBtn.style.border = 'none';
-            closeBtn.style.background = 'transparent';
-            closeBtn.style.cursor = 'pointer';
-            closeBtn.style.fontSize = '20px';
-            closeBtn.onclick = () => document.body.removeChild(buttonDiv);
-            
             const googleBtnContainer = document.createElement('div');
             googleBtnContainer.id = 'google-signin-button-temp';
             
-            buttonDiv.appendChild(closeBtn);
             buttonDiv.appendChild(googleBtnContainer);
             document.body.appendChild(buttonDiv);
+            
+            // Fermer automatiquement après authentification ou au clic en dehors
+            const closePopup = () => {
+              if (document.body.contains(buttonDiv)) {
+                document.body.removeChild(buttonDiv);
+              }
+            };
+            
+            // Fermer si on clique en dehors
+            setTimeout(() => {
+              document.addEventListener('click', (e) => {
+                if (!buttonDiv.contains(e.target)) {
+                  closePopup();
+                }
+              }, { once: true });
+            }, 100);
             
             google.accounts.id.renderButton(
               googleBtnContainer,
