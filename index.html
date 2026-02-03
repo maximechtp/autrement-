@@ -14,6 +14,8 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <!-- User Database -->
   <script src="user-database.js"></script>
+  <!-- Stripe Payment System -->
+  <script src="stripe-payment.js"></script>
 </head>
 <body>
 
@@ -279,9 +281,9 @@
             <li>✗ Accès aux cours</li>
             <li>✗ Support prioritaire</li>
           </ul>
-          <a href="https://buy.stripe.com/5kQ3co2Gp6y2cRZ4etd3i00" class="plan-button" target="_blank" rel="noopener noreferrer">
+          <button onclick="goToStripeCheckout('standard')" class="plan-button">
             S'abonner – 4,99 € / mois
-          </a>
+          </button>
         </div>
         
         <div class="plan-card plan-premium">
@@ -300,9 +302,9 @@
             <li>✓ Support prioritaire 24/7</li>
             <li>✓ Supplément: 25€ pour 4 cours</li>
           </ul>
-          <a href="https://buy.stripe.com/aFa14g94Nf4y19hh1fd3i01" class="plan-button premium" target="_blank" rel="noopener noreferrer">
+          <button onclick="goToStripeCheckout('premium')" class="plan-button premium">
             Accès Premium – 120 € / an
-          </a>
+          </button>
         </div>
       </div>
       
@@ -322,9 +324,9 @@
             <li>✓ Validité : 1 an</li>
             <li>✓ Accès prioritaire aux professeurs</li>
           </ul>
-          <a href="https://buy.stripe.com/fZu3co1Cl1dI4lt26ld3i02" id="btn-buy-extra-courses" class="plan-button premium" target="_blank" rel="noopener noreferrer">
+          <button onclick="goToStripeCheckout('extra')" id="btn-buy-extra-courses" class="plan-button premium">
             Acheter 4 cours – 25 €
-          </a>
+          </button>
         </div>
       </div>
     </div>

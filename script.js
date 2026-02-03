@@ -1313,7 +1313,30 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("User logged in:", sessionData.isLoggedIn);
         console.log("User email:", sessionData.email);
         
-        // Vérifier la limite d'utilisation avant de continuer
+        // Vérifier les accès selon le type d'abonnement
+        const currentUser = userDB.getCurrentUser();
+        if (currentUser && typeof stripePayment !== 'undefined') {
+          const canUse = stripePayment.canUseFeature(
+            param === 'chat' ? 'ai' : 
+            param === 'debat' ? 'ai' : 
+            'book_classes'
+          );
+          
+          if (!canUse && param === 'cours') {
+            // Pour les cours, vérifier l'accès spécifique
+            const access = stripePayment.getSubscriptionAccess(
+              currentUser.subscription.isActive ? currentUser.subscription.type : 'gratuit'
+            );
+            
+            if (!access.canBookClasses) {
+              console.log('❌ Accès refusé: cours réservés aux abonnés');
+              stripePayment.showUpgradeModal('book_classes');
+              break;
+            }
+          }
+        }
+        
+        // Vérifier la limite d'utilisation pour les utilisateurs gratuits
         if (!sessionData.isSubscribed) {
           // Déterminer le type d'activité
           let activityType = param === 'chat' ? 'chat' : (param === 'debat' ? 'debat' : 'cours');
@@ -2748,6 +2771,50 @@ function demanderAutorisationMatieres() {
 // ===== STRIPE INTEGRATION =====
 
 /**
+ * Redirige vers la page de paiement Stripe avec l'email de l'utilisateur
+ */
+function goToStripeCheckout(plan) {
+  console.log('💳 Redirection vers Stripe:', plan);
+  
+  // Vérifier que l'utilisateur est connecté
+  const currentUser = userDB.getCurrentUser();
+  if (!currentUser) {
+    alert('⚠️ Veuillez vous connecter avant de souscrire à un abonnement.');
+    goTo('eleve');
+    return;
+  }
+  
+  const email = currentUser.email;
+  
+  // URLs Stripe selon le plan
+  const stripeUrls = {
+    standard: 'https://buy.stripe.com/5kQ3co2Gp6y2cRZ4etd3i00',
+    premium: 'https://buy.stripe.com/aFa14g94Nf4y19hh1fd3i01',
+    extra: 'https://buy.stripe.com/fZu3co1Cl1dI4lt26ld3i02'
+  };
+  
+  if (!stripeUrls[plan]) {
+    console.error('❌ Plan inconnu:', plan);
+    return;
+  }
+  
+  // URL de retour après paiement (votre site)
+  const returnUrl = window.location.origin + window.location.pathname + '?success=true&session_id={CHECKOUT_SESSION_ID}';
+  const cancelUrl = window.location.origin + window.location.pathname + '?canceled=true';
+  
+  // Construire l'URL Stripe avec les paramètres
+  const stripeUrl = stripeUrls[plan] + 
+    `?prefilled_email=${encodeURIComponent(email)}` +
+    `&client_reference_id=${encodeURIComponent(email)}`;
+  
+  console.log('🔗 Redirection vers:', stripeUrl);
+  console.log('📧 Email:', email);
+  
+  // Ouvrir Stripe dans le même onglet
+  window.location.href = stripeUrl;
+}
+
+/**
  * Simule un paiement Stripe réussi (pour tests)
  * En production, cette fonction sera appelée via webhook Stripe
  */
@@ -2805,8 +2872,9 @@ function simulateStripePayment(email, subscriptionType) {
     });
 }
 
-// Rendre disponible globalement pour tests console
+// Rendre disponible globalement pour tests console et boutons HTML
 window.simulateStripePayment = simulateStripePayment;
+window.goToStripeCheckout = goToStripeCheckout;
 
 console.log('💳 Stripe integration loaded');
 console.log('🧪 Test: simulateStripePayment("email@example.com", "premium")');
