@@ -220,49 +220,46 @@ function showSampleTeacherProfile() {
 
 // ===== USER SESSION MANAGEMENT =====
 function saveSessionToStorage() {
-  // Sauvegarder toutes les données de session dans sessionStorage
-  sessionStorage.setItem('isLoggedIn', 'true');
-  sessionStorage.setItem('email', sessionData.email || '');
-  sessionStorage.setItem('prenom', sessionData.prenom || '');
-  sessionStorage.setItem('nom', sessionData.nom || '');
-  sessionStorage.setItem('classe', sessionData.classe || '');
-  sessionStorage.setItem('password', sessionData.password || '');
-  sessionStorage.setItem('isSubscribed', sessionData.isSubscribed ? 'true' : 'false');
-  sessionStorage.setItem('userPhoto', sessionData.userPhoto || '');
-  sessionStorage.setItem('googleUser', sessionData.googleUser ? 'true' : 'false');
-  sessionStorage.setItem('isTeacher', sessionData.isTeacher ? 'true' : 'false');
-  sessionStorage.setItem('usageCount', JSON.stringify(sessionData.usageCount || {}));
+  // Optimisation: sauvegarder en un seul objet JSON
+  const sessionObj = {
+    isLoggedIn: true,
+    email: sessionData.email || '',
+    prenom: sessionData.prenom || '',
+    nom: sessionData.nom || '',
+    classe: sessionData.classe || '',
+    password: sessionData.password || '',
+    isSubscribed: sessionData.isSubscribed,
+    userPhoto: sessionData.userPhoto || '',
+    googleUser: sessionData.googleUser,
+    isTeacher: sessionData.isTeacher,
+    usageCount: sessionData.usageCount || {},
+    subscriptionType: sessionData.subscriptionType
+  };
+  sessionStorage.setItem('lok_in_session', JSON.stringify(sessionObj));
 }
 
+// Optimisation: lire en un seul accès
 function restoreSessionFromStorage() {
-  const isLoggedIn = sessionStorage.getItem('isLoggedIn');
-  if (isLoggedIn === 'true') {
-    sessionData.isLoggedIn = true;
-    sessionData.email = sessionStorage.getItem('email') || '';
-    sessionData.prenom = sessionStorage.getItem('prenom') || '';
-    sessionData.nom = sessionStorage.getItem('nom') || '';
-    sessionData.classe = sessionStorage.getItem('classe') || '';
-    sessionData.password = sessionStorage.getItem('password') || '';
-    sessionData.isSubscribed = sessionStorage.getItem('isSubscribed') === 'true';
-    sessionData.userPhoto = sessionStorage.getItem('userPhoto') || null;
-    sessionData.googleUser = sessionStorage.getItem('googleUser') === 'true';
-    sessionData.isTeacher = sessionStorage.getItem('isTeacher') === 'true';
-    try {
-      sessionData.usageCount = JSON.parse(sessionStorage.getItem('usageCount') || '{}');
-    } catch (e) {
-      sessionData.usageCount = {};
-    }
+  try {
+    const sessionStr = sessionStorage.getItem('lok_in_session');
+    if (!sessionStr) return false;
     
-    // Rediriger vers la page appropriée
-    if (sessionData.isTeacher) {
-      goTo('prof');
-      // Charger les demandes de cours pour le professeur
-      setTimeout(() => loadCourseRequests(), 100);
-    } else {
-      goTo('eleve-options');
+    const sessionObj = JSON.parse(sessionStr);
+    if (sessionObj.isLoggedIn) {
+      Object.assign(sessionData, sessionObj);
+      
+      // Rediriger vers la page appropriée
+      if (sessionData.isTeacher) {
+        goTo('prof');
+        requestAnimationFrame(() => loadCourseRequests());
+      } else {
+        goTo('eleve-options');
+      }
+      
+      return true;
     }
-    
-    return true;
+  } catch (e) {
+    console.error('Error restoring session:', e);
   }
   return false;
 }
@@ -337,14 +334,17 @@ function updateUserAvatar() {
       avatar.title = `${sessionData.prenom} ${sessionData.nom}\n${subscriptionStatus}`;
     }
     
-    // Add click handler to show appropriate profile
-    avatar.onclick = () => {
-      if (sessionData.isTeacher) {
-        showTeacherProfile();
-      } else {
-        showUserProfile();
-      }
-    };
+    // Utiliser un seul handler (optimisation)
+    if (!avatar.dataset.handlerSet) {
+      avatar.onclick = () => {
+        if (sessionData.isTeacher) {
+          showTeacherProfile();
+        } else {
+          showUserProfile();
+        }
+      };
+      avatar.dataset.handlerSet = 'true';
+    }
   } else {
     avatar.classList.add('hidden');
   }
@@ -1249,17 +1249,13 @@ document.addEventListener("DOMContentLoaded", () => {
     
     updateUserAvatar();
     
-    // Rediriger vers la bonne page selon le type d'utilisateur
-    if (user.isTeacher) {
-      goTo("prof");
-    } else {
-      goTo("eleve-options");
-    }
-    return;
+    // NE PAS rediriger automatiquement - laisser l'utilisateur sur la page d'accueil
+    // Il pourra cliquer sur "Je suis élève" ou "Je suis professeur" pour naviguer
+    console.log('ℹ️ Session active - utilisateur peut naviguer depuis l\'accueil');
   }
   
-  // Sinon, afficher la page d'accueil
-  console.log('ℹ️ Aucune session active');
+  // Afficher la page d'accueil par défaut
+  console.log('📱 Affichage page d\'accueil');
   goTo("home");
 
   document.body.addEventListener("click", (event) => {
@@ -1279,33 +1275,39 @@ document.addEventListener("DOMContentLoaded", () => {
       case "checkLoginAndGo":
         // Si déjà connecté, aller directement aux options, sinon à la page de connexion
         console.log("checkLoginAndGo triggered, isLoggedIn:", sessionData.isLoggedIn, "param:", param);
-        if (sessionData.isLoggedIn) {
-          console.log("User is logged in, checking user type. isTeacher:", sessionData.isTeacher);
-          
-          // Vérifier le type d'utilisateur et la destination
-          if (sessionData.isTeacher) {
-            // Si c'est un professeur
-            if (param === "eleve") {
-              alert("Vous êtes déjà connecté en tant que professeur. Déconnectez-vous pour accéder à l'espace élève.");
-              return;
+        
+        // Attendre un peu pour s'assurer que la session est bien chargée
+        requestAnimationFrame(() => {
+          if (sessionData.isLoggedIn) {
+            console.log("User is logged in, checking user type. isTeacher:", sessionData.isTeacher);
+            
+            // Vérifier le type d'utilisateur et la destination
+            if (sessionData.isTeacher) {
+              // Si c'est un professeur
+              if (param === "eleve") {
+                alert("Vous êtes déjà connecté en tant que professeur. Déconnectez-vous pour accéder à l'espace élève.");
+                return;
+              }
+              // Professeur clique sur "Je suis professeur" - retour à la page prof
+              console.log("✅ Redirecting teacher to prof page");
+              goTo("prof");
+              // Charger les demandes de cours immédiatement
+              requestAnimationFrame(() => loadCourseRequests());
+            } else {
+              // Si c'est un élève
+              if (param === "professeur") {
+                alert("Vous êtes déjà connecté en tant qu'élève. Déconnectez-vous pour accéder à l'espace professeur.");
+                return;
+              }
+              // Élève clique sur "Je suis élève" - retour aux options
+              console.log("✅ Redirecting student to eleve-options");
+              goTo("eleve-options");
             }
-            // Professeur clique sur "Je suis professeur" - retour à la page prof
-            console.log("Redirecting teacher to prof page");
-            goTo("prof");
           } else {
-            // Si c'est un élève
-            if (param === "professeur") {
-              alert("Vous êtes déjà connecté en tant qu'élève. Déconnectez-vous pour accéder à l'espace professeur.");
-              return;
-            }
-            // Élève clique sur "Je suis élève" - retour aux options
-            console.log("Redirecting student to eleve-options");
-            goTo("eleve-options");
+            console.log("User not logged in, going to:", param);
+            goTo(param);
           }
-        } else {
-          console.log("User not logged in, going to:", param);
-          goTo(param);
-        }
+        });
         break;
 
       case "chooseOption":
@@ -1513,38 +1515,6 @@ function setupBackButton() {
   });
 }
 
-function goTo(pageId) {
-  // Si déjà connecté et qu'on essaie d'aller sur la page de connexion, rediriger vers eleve-options
-  if (sessionData.isLoggedIn && pageId === 'eleve') {
-    pageId = 'eleve-options';
-  }
-  
-  // Check if login is required for this page
-  if (!checkLoginRequired(pageId)) {
-    return;
-  }
-  
-  // Get current visible page before changing
-  const currentPage = document.querySelector(".page:not(.hidden)");
-  
-  // Add to history only when navigating away from a page that's not home
-  if (currentPage && currentPage.id !== pageId && currentPage.id !== "home") {
-    navigationHistory.push(currentPage.id);
-  }
-
-  // Hide all pages
-  document.querySelectorAll(".page").forEach(p => p.classList.add("hidden"));
-  // Hide modal overlay
-  document.getElementById("modal-overlay").classList.add("hidden");
-  
-  const page = document.getElementById(pageId);
-  if (page) {
-    page.classList.remove("hidden");
-  } else {
-    console.error("Page introuvable :", pageId);
-  }
-}
-
 function goBack() {
   if (navigationHistory.length > 0) {
     const previousPage = navigationHistory.pop();
@@ -1561,42 +1531,73 @@ function goBack() {
 }
 
 /* ---------- Navigation ---------- */
+// Cache DOM pour optimisation
+const pageCache = { pages: null, modalOverlay: null };
+
 function goTo(pageId) {
-  // Hide all pages
-  document.querySelectorAll(".page").forEach(p => p.classList.add("hidden"));
-  // Hide modal overlay
-  document.getElementById("modal-overlay").classList.add("hidden");
+  // Si déjà connecté et qu'on essaie d'aller sur la page de connexion, rediriger
+  if (sessionData.isLoggedIn && pageId === 'eleve') {
+    pageId = 'eleve-options';
+  }
+  
+  // Check if login is required
+  if (!checkLoginRequired(pageId)) {
+    return;
+  }
+  
+  // Initialiser le cache
+  if (!pageCache.pages) {
+    pageCache.pages = document.querySelectorAll('.page');
+    pageCache.modalOverlay = document.getElementById('modal-overlay');
+  }
   
   // Clean up map if leaving search page
-  if (pageId !== "search") {
+  const currentPage = document.querySelector('.page:not(.hidden)');
+  if (currentPage?.id === 'search' && pageId !== 'search') {
     cleanupWorldMap();
   }
   
-  const page = document.getElementById(pageId);
-  if (page) {
-    page.classList.remove("hidden");
+  // Batch DOM updates avec requestAnimationFrame
+  requestAnimationFrame(() => {
+    const targetPage = document.getElementById(pageId);
+    if (!targetPage) {
+      console.error('Page introuvable:', pageId);
+      return;
+    }
+    
+    // Hide all pages et show target
+    pageCache.pages.forEach(p => p.classList.add('hidden'));
+    pageCache.modalOverlay?.classList.add('hidden');
+    targetPage.classList.remove('hidden');
     
     // Initialize map AFTER the search page is visible
-    if (pageId === "search") {
-      console.log("🗺️ Search page now visible, initializing map...");
-      setTimeout(() => {
-        initializeWorldMap();
-        connectWebSocket();
-        requestGeolocation();
-      }, 300);
+    if (pageId === 'search') {
+      console.log('🗺️ Search page now visible, initializing map...');
+      // Utiliser requestIdleCallback si disponible
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(() => {
+          initializeWorldMap();
+          connectWebSocket();
+          requestGeolocation();
+        }, { timeout: 300 });
+      } else {
+        setTimeout(() => {
+          initializeWorldMap();
+          connectWebSocket();
+          requestGeolocation();
+        }, 150);
+      }
     }
     
     // Load course requests when accessing professor page
-    if (pageId === "prof" && sessionData.isTeacher) {
-      setTimeout(() => {
+    if (pageId === 'prof' && sessionData.isTeacher) {
+      requestAnimationFrame(() => {
         loadCourseRequests();
         loadAuthorizedMatieres();
         updateCagnotteDisplay();
-      }, 100);
+      });
     }
-  } else {
-    console.error("Page introuvable :", pageId);
-  }
+  });
 }
 
 /* ---------- Language Selection ---------- */
