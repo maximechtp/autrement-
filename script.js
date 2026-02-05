@@ -2319,13 +2319,18 @@ function initializeWorldMap() {
       users.forEach((user) => {
         const customIcon = L.divIcon({
           className: "user-marker",
-          html: user.emoji,
-          iconSize: [32, 32],
-          iconAnchor: [16, 16]
+          html: `<div class="pin-marker">
+                   <div class="pin-head"></div>
+                   <div class="pin-point"></div>
+                   <div class="pin-pulse"></div>
+                 </div>`,
+          iconSize: [40, 50],
+          iconAnchor: [20, 50],
+          popupAnchor: [0, -50]
         });
 
         const marker = L.marker([user.lat, user.lng], { icon: customIcon }).addTo(map);
-        marker.bindPopup(`<strong>${user.name}</strong><br/>Langue: ${user.lang}<br/><small>En ligne</small>`);
+        marker.bindPopup(`<strong>${user.name}</strong><br/>Langue: ${user.lang}<br/><small>🟢 En ligne</small>`);
         mapMarkers.push(marker);
       });
 
@@ -2774,13 +2779,18 @@ function updateRealUserMarkers(users) {
       // Créer un nouveau marqueur
       const customIcon = L.divIcon({
         className: "user-marker",
-        html: "👤",
-        iconSize: [32, 32],
-        iconAnchor: [16, 16]
+        html: `<div class="pin-marker">
+                 <div class="pin-head"></div>
+                 <div class="pin-point"></div>
+                 <div class="pin-pulse"></div>
+               </div>`,
+        iconSize: [40, 50],
+        iconAnchor: [20, 50],
+        popupAnchor: [0, -50]
       });
 
       const marker = L.marker([user.lat, user.lng], { icon: customIcon }).addTo(map);
-      marker.bindPopup(`<strong>${user.name}</strong><br/><small>En ligne</small>`);
+      marker.bindPopup(`<strong>${user.name}</strong><br/><small>🟢 En ligne</small>`);
       
       realUserMarkers.set(user.id, marker);
       console.log(`✅ Nouveau marqueur ajouté pour ${user.name}`);
