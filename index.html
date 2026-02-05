@@ -584,10 +584,69 @@
 </div>
 
 <div id="profile" class="page hidden">
-  <h2 id="profile-title">Profil trouvé</h2>
-  <p id="profile-info"></p>
-  <button data-action="acceptConnection">Accepter</button>
-  <button data-action="refuseConnection">Refuser</button>
+  <div class="call-container">
+    <!-- En-tête avec animation -->
+    <div class="call-header">
+      <div class="call-status-badge">
+        <span class="pulse-dot"></span>
+        <span>Match trouvé !</span>
+      </div>
+      <h2 id="profile-title">Partenaire trouvé</h2>
+    </div>
+
+    <!-- Profil du partenaire -->
+    <div class="partner-profile-card">
+      <div class="partner-avatar">
+        <div class="avatar-circle" id="profile-avatar-initial">
+          ??
+        </div>
+        <div class="online-indicator"></div>
+      </div>
+      
+      <div class="partner-info">
+        <h3 id="profile-partner-name" class="partner-name">Chargement...</h3>
+        <p id="profile-partner-class" class="partner-class">Classe...</p>
+        
+        <div class="partner-stats">
+          <div class="stat-item">
+            <span class="stat-icon">📞</span>
+            <div class="stat-content">
+              <span class="stat-number" id="profile-calls-count">0</span>
+              <span class="stat-label">Appels effectués</span>
+            </div>
+          </div>
+          <div class="stat-item">
+            <span class="stat-icon">⭐</span>
+            <div class="stat-content">
+              <span class="stat-number" id="profile-rating">0.0</span>
+              <span class="stat-label">Note moyenne</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="partner-activity-info">
+          <p id="profile-activity">🎯 Recherche: <strong id="profile-activity-type">...</strong></p>
+          <p id="profile-language">🌍 Langue: <strong id="profile-language-type">...</strong></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Boutons accepter/refuser avec design moderne -->
+    <div class="connection-actions">
+      <button data-action="acceptConnection" class="btn-accept">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Accepter la connexion
+      </button>
+      <button data-action="refuseConnection" class="btn-refuse">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Refuser
+      </button>
+    </div>
+  </div>
 </div>
 
 <div id="call" class="page hidden">
