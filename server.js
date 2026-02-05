@@ -276,7 +276,7 @@ function handleStartSearch(clientId, message) {
     if (matchedUser && matchedUser.ws.readyState === WebSocket.OPEN) {
       // Créer une room Google Meet
       const meetId = generateMeetId();
-      const meetLink = `https://meet.google.com/${meetId}`;
+      const meetLink = `https://meet.jit.si/lokin-${meetId}`;
       
       console.log(`✅ Match trouvé ! ${user.name} ↔️ ${matchedUser.name}`);
       console.log(`📹 Google Meet créé: ${meetLink}`);
@@ -608,7 +608,7 @@ function checkForWaitingStudents(matiere) {
  */
 function createTeacherStudentMatch(teacher, teacherClientId, student, studentClientId) {
   const meetId = generateMeetId();
-  const meetLink = `https://meet.google.com/${meetId}`;
+  const meetLink = `https://meet.jit.si/lokin-${meetId}`;
   
   console.log(`✅ Match trouvé ! Élève: ${student.name} ↔️ Prof: ${teacher.name} (${student.searchMatiere})`);
   console.log(`📹 Google Meet créé: ${meetLink}`);

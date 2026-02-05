@@ -3031,10 +3031,9 @@ function refuseCourseRequest(requestId) {
 }
 
 function createGoogleMeet(request) {
-  // En production, cela créerait un vrai Google Meet via l'API
-  // Pour l'instant, on simule avec un lien vers Google Meet
-  const meetId = `lokin-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-  return `https://meet.google.com/${meetId}`;
+  // Créer une salle Jitsi Meet (gratuit et instantané)
+  const meetId = generateMeetId();
+  return `https://meet.jit.si/lokin-${meetId}`;
 }
 
 // ===== TEACHER EARNINGS SYSTEM =====
