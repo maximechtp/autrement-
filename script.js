@@ -3031,9 +3031,9 @@ function refuseCourseRequest(requestId) {
 }
 
 function createGoogleMeet(request) {
-  // Créer une salle Jitsi Meet (gratuit et instantané)
+  // Créer une salle Jitsi avec notre intégration personnalisée
   const meetId = generateMeetId();
-  return `https://meet.jit.si/lokin-${meetId}#config.prejoinPageEnabled=false&config.requireDisplayName=false`;
+  return `https://lokin.online/jitsi-room.html?room=${meetId}`;
 }
 
 // ===== TEACHER EARNINGS SYSTEM =====

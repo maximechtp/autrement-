@@ -274,9 +274,9 @@ function handleStartSearch(clientId, message) {
     const matchedUser = connectedUsers.get(matchedClientId);
     
     if (matchedUser && matchedUser.ws.readyState === WebSocket.OPEN) {
-      // Créer une salle Jitsi sans modération
+      // Créer une salle Jitsi avec notre intégration personnalisée
       const meetId = generateMeetId();
-      const meetLink = `https://meet.jit.si/lokin-${meetId}#config.prejoinPageEnabled=false&config.requireDisplayName=false`;
+      const meetLink = `https://lokin.online/jitsi-room.html?room=${meetId}`;
       
       console.log(`✅ Match trouvé ! ${user.name} ↔️ ${matchedUser.name}`);
       console.log(`📹 Google Meet créé: ${meetLink}`);
@@ -608,7 +608,7 @@ function checkForWaitingStudents(matiere) {
  */
 function createTeacherStudentMatch(teacher, teacherClientId, student, studentClientId) {
   const meetId = generateMeetId();
-  const meetLink = `https://meet.jit.si/lokin-${meetId}#config.prejoinPageEnabled=false&config.requireDisplayName=false`;
+  const meetLink = `https://lokin.online/jitsi-room.html?room=${meetId}`;
   
   console.log(`✅ Match trouvé ! Élève: ${student.name} ↔️ Prof: ${teacher.name} (${student.searchMatiere})`);
   console.log(`📹 Google Meet créé: ${meetLink}`);

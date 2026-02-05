@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salle de visio - LOK IN</title>
+    <script src='https://8x8.vc/vpaas-magic-cookie-1e3d9da3b28e422ea6b3c1bb7fb60fc0/external_api.js'></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+        }
+        #jitsi-container {
+            width: 100vw;
+            height: 100vh;
+        }
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            text-align: center;
+        }
+        .loading h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.1);
+            border-left-color: #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <h1>Connexion à la salle...</h1>
+        <div class="spinner"></div>
+    </div>
+    <div id="jitsi-container"></div>
+
+    <script>
+        // Récupérer le roomId depuis l'URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('room');
+        const userName = urlParams.get('name') || 'Utilisateur';
+
+        if (!roomId) {
+            document.getElementById('loading').innerHTML = '<h1>Erreur: Pas de salle spécifiée</h1>';
+        } else {
+            // Configuration Jitsi sans modération
+            const domain = 'meet.jit.si';
+            const options = {
+                roomName: `lokin-${roomId}`,
+                width: '100%',
+                height: '100%',
+                parentNode: document.getElementById('jitsi-container'),
+                userInfo: {
+                    displayName: userName
+                },
+                configOverwrite: {
+                    // Désactiver la salle d'attente et la modération
+                    enableLobbyChat: false,
+                    prejoinPageEnabled: false,
+                    requireDisplayName: false,
+                    startWithAudioMuted: false,
+                    startWithVideoMuted: false,
+                    disableModeratorIndicator: true,
+                    
+                    // Désactiver les fonctionnalités de modération
+                    disableRemoteMute: true,
+                    enableNoisyMicDetection: false,
+                    
+                    // Interface simplifiée
+                    hideConferenceSubject: false,
+                    hideConferenceTimer: false,
+                    
+                    // Autoriser tous les utilisateurs
+                    enableInsecureRoomNameWarning: false,
+                    enableWelcomePage: false
+                },
+                interfaceConfigOverwrite: {
+                    TOOLBAR_BUTTONS: [
+                        'microphone', 'camera', 'closedcaptions', 'desktop', 
+                        'fullscreen', 'fodeviceselection', 'hangup', 'chat',
+                        'settings', 'videoquality', 'filmstrip',
+                        'tileview', 'select-background', 'mute-everyone'
+                    ],
+                    SETTINGS_SECTIONS: [ 'devices', 'language', 'moderator', 'profile', 'calendar' ],
+                    SHOW_JITSI_WATERMARK: false,
+                    SHOW_WATERMARK_FOR_GUESTS: false,
+                    SHOW_BRAND_WATERMARK: false,
+                    BRAND_WATERMARK_LINK: '',
+                    SHOW_POWERED_BY: false,
+                    DEFAULT_REMOTE_DISPLAY_NAME: 'Utilisateur',
+                    DEFAULT_LOCAL_DISPLAY_NAME: 'Vous',
+                    MOBILE_APP_PROMO: false
+                }
+            };
+
+            // Créer la conférence
+            const api = new JitsiMeetExternalAPI(domain, options);
+
+            // Cacher le loader une fois connecté
+            api.addEventListener('videoConferenceJoined', () => {
+                document.getElementById('loading').style.display = 'none';
+            });
+
+            // Rediriger vers le site quand on quitte
+            api.addEventListener('readyToClose', () => {
+                window.close();
+                // Si window.close ne marche pas (popup bloqué)
+                setTimeout(() => {
+                    window.location.href = 'https://lokin.online';
+                }, 1000);
+            });
+        }
+    </script>
+</body>
+</html>
