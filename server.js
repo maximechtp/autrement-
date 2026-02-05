@@ -30,9 +30,15 @@ function generateClientId() {
 
 // Génère un ID unique pour une room Google Meet
 function generateMeetId() {
-  const timestamp = Date.now().toString(36);
-  const randomStr = Math.random().toString(36).substring(2, 10);
-  return `lokin-${timestamp}-${randomStr}`;
+  // Générer un ID au format Google Meet valide: xxx-yyyy-zzz
+  // Utilise uniquement des lettres minuscules pour compatibilité
+  const chars = 'abcdefghijklmnopqrstuvwxyz';
+  
+  const segment1 = Array.from({length: 3}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  const segment2 = Array.from({length: 4}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  const segment3 = Array.from({length: 3}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  
+  return `${segment1}-${segment2}-${segment3}`;
 }
 
 // Broadcast la liste des utilisateurs à tous les clients connectés

@@ -1847,16 +1847,33 @@ function startSearchingTeacher() {
 function showFoundTeacher() {
   // Cette fonction est maintenant appelée quand on reçoit un message 'matchFound' du serveur
   const teacherInfo = sessionData.partnerName || 'Professeur';
+  const partnerClasse = sessionData.partnerClasse || 'Professeur';
+  const partnerEmail = sessionData.partnerEmail || '';
   
-  document.getElementById("profile-info").textContent = 
-    `Professeur trouvé : ${teacherInfo}\nMatière : ${sessionData.matiere}\nNiveau : ${sessionData.niveau}\nStatut : ✅ Disponible`;
+  // Mettre à jour le profil avec les vraies données du professeur
+  document.getElementById('profile-partner-name').textContent = teacherInfo;
+  document.getElementById('profile-partner-class').textContent = partnerClasse;
+  
+  // Initiales pour l'avatar
+  const initials = getInitials(teacherInfo);
+  document.getElementById('profile-avatar-initial').textContent = initials;
+  
+  // Activité et matière
+  document.getElementById('profile-activity-type').textContent = `Cours de ${sessionData.matiere || 'matière'}`;
+  document.getElementById('profile-language-type').textContent = sessionData.niveau || 'Tous niveaux';
+  
+  // Récupérer les vraies stats depuis la base de données
+  getRealPartnerStats(partnerEmail).then(stats => {
+    document.getElementById('profile-calls-count').textContent = stats.callsCount;
+    document.getElementById('profile-rating').textContent = stats.rating.toFixed(1);
+  });
   
   goTo("profile");
 }
 
 function showFoundProfile() {
   // Cette fonction est maintenant appelée quand on reçoit un message 'matchFound' du serveur
-  // Elle affiche le profil du partenaire trouvé
+  // Elle affiche le profil du partenaire trouvé avec les VRAIES données
   
   // Adapter le message selon l'option choisie
   let activityText = "";
@@ -1868,11 +1885,28 @@ function showFoundProfile() {
     activityText = "Cours";
   }
   
-  const partnerInfo = sessionData.partnerName || 'Utilisateur';
-  const partnerClasse = sessionData.partnerClasse || '';
+  // VRAIES données du partenaire
+  const partnerName = sessionData.partnerName || 'Utilisateur';
+  const partnerClasse = sessionData.partnerClasse || 'Non spécifiée';
+  const partnerEmail = sessionData.partnerEmail || '';
   
-  document.getElementById("profile-info").textContent = 
-    `Élève trouvé : ${partnerInfo}${partnerClasse ? '\nClasse: ' + partnerClasse : ''}\nRecherche : ${activityText} en ${sessionData.langue}\nStatut : ✅ Disponible`;
+  // Mettre à jour le profil avec les vraies données
+  document.getElementById('profile-partner-name').textContent = partnerName;
+  document.getElementById('profile-partner-class').textContent = `Classe: ${partnerClasse}`;
+  
+  // Initiales pour l'avatar
+  const initials = getInitials(partnerName);
+  document.getElementById('profile-avatar-initial').textContent = initials;
+  
+  // Activité et langue
+  document.getElementById('profile-activity-type').textContent = activityText;
+  document.getElementById('profile-language-type').textContent = sessionData.langue || 'Non spécifiée';
+  
+  // Récupérer les vraies stats depuis la base de données
+  getRealPartnerStats(partnerEmail).then(stats => {
+    document.getElementById('profile-calls-count').textContent = stats.callsCount;
+    document.getElementById('profile-rating').textContent = stats.rating.toFixed(1);
+  });
   
   goTo("profile");
 }
@@ -1911,14 +1945,12 @@ function updatePartnerProfile() {
   const initials = getInitials(partnerName);
   document.getElementById('partner-avatar-initial').textContent = initials;
   
-  // Nombre d'appels (simulé - à remplacer par vraie data)
+  // Récupérer les vraies stats depuis la base de données
   const partnerEmail = sessionData.partnerEmail || '';
-  const callsCount = getPartnerCallsCount(partnerEmail);
-  document.getElementById('partner-calls-count').textContent = callsCount;
-  
-  // Note moyenne (simulée - à remplacer par vraie data)
-  const rating = getPartnerRating(partnerEmail);
-  document.getElementById('partner-rating').textContent = rating.toFixed(1);
+  getRealPartnerStats(partnerEmail).then(stats => {
+    document.getElementById('partner-calls-count').textContent = stats.callsCount;
+    document.getElementById('partner-rating').textContent = stats.rating.toFixed(1);
+  });
 }
 
 function getInitials(name) {
@@ -1930,31 +1962,50 @@ function getInitials(name) {
   return name.substring(0, 2).toUpperCase();
 }
 
-function getPartnerCallsCount(email) {
-  // Simuler un nombre d'appels basé sur l'email (pour démo)
-  // En production, récupérer depuis la base de données
-  if (!email) return Math.floor(Math.random() * 50) + 5;
-  
-  // Utiliser le hash de l'email pour un nombre constant
-  let hash = 0;
-  for (let i = 0; i < email.length; i++) {
-    hash = ((hash << 5) - hash) + email.charCodeAt(i);
-    hash = hash & hash;
+// Fonction pour récupérer les VRAIES stats d'un utilisateur depuis la base de données
+async function getRealPartnerStats(email) {
+  if (!email) {
+    return { callsCount: 0, rating: 0.0 };
   }
-  return Math.abs(hash % 100) + 10;
-}
 
-function getPartnerRating(email) {
-  // Simuler une note entre 4.0 et 5.0 (pour démo)
-  // En production, récupérer depuis la base de données
-  if (!email) return 4.5 + Math.random() * 0.5;
-  
-  let hash = 0;
-  for (let i = 0; i < email.length; i++) {
-    hash = ((hash << 5) - hash) + email.charCodeAt(i);
-    hash = hash & hash;
+  try {
+    // Récupérer les données depuis Firebase
+    const userRef = ref(database, `users/${email.replace(/\./g, ',')}`);
+    const snapshot = await get(userRef);
+    
+    if (snapshot.exists()) {
+      const userData = snapshot.val();
+      
+      // Compter le nombre d'appels dans l'historique
+      const callHistory = userData.callHistory || {};
+      const callsCount = Object.keys(callHistory).length;
+      
+      // Calculer la moyenne des notes reçues
+      const ratings = userData.ratings || {};
+      const ratingsArray = Object.values(ratings);
+      let averageRating = 0;
+      
+      if (ratingsArray.length > 0) {
+        const sum = ratingsArray.reduce((acc, val) => acc + (val.rating || 0), 0);
+        averageRating = sum / ratingsArray.length;
+      } else {
+        // Si pas encore de notes, afficher 5.0 par défaut
+        averageRating = 5.0;
+      }
+      
+      return {
+        callsCount: callsCount,
+        rating: averageRating
+      };
+    } else {
+      // Utilisateur pas encore dans la base ou nouveau
+      return { callsCount: 0, rating: 5.0 };
+    }
+  } catch (error) {
+    console.error('Erreur lors de la récupération des stats:', error);
+    // En cas d'erreur, retourner des valeurs par défaut
+    return { callsCount: 0, rating: 5.0 };
   }
-  return 4.0 + (Math.abs(hash % 10) / 10);
 }
 
 function generateReviews() {
@@ -2034,11 +2085,14 @@ function generateReviews() {
 }
 
 function generateMeetId() {
-  // Generate a Jitsi Meet room name
-  const timestamp = Date.now().toString(36);
-  const randomStr = Math.random().toString(36).substring(2, 8);
-  const roomName = `specialistes-${timestamp}-${randomStr}`;
-  return roomName;
+  // Générer un ID au format Google Meet valide: xxx-yyyy-zzz
+  const chars = 'abcdefghijklmnopqrstuvwxyz';
+  
+  const segment1 = Array.from({length: 3}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  const segment2 = Array.from({length: 4}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  const segment3 = Array.from({length: 3}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  
+  return `${segment1}-${segment2}-${segment3}`;
 }
 
 function copyToClipboard() {
