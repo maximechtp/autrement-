@@ -2293,6 +2293,14 @@ function sendLocationToServer() {
 
 // ===== WEBSOCKET =====
 /**
+ * Configuration WebSocket avec retry et fallback
+ */
+let wsRetryCount = 0;
+const WS_MAX_RETRIES = 5;
+const WS_RETRY_DELAY = 2000; // 2 secondes
+let wsRetryTimeout = null;
+
+/**
  * Connecte au serveur WebSocket pour le partage de positions en temps réel
  */
 function connectWebSocket() {
@@ -2304,20 +2312,46 @@ function connectWebSocket() {
 
   // Déterminer l'URL du serveur WebSocket
   const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'localhost:8080'
-    : window.location.host; // Utiliser le même host en production
+  let wsHost;
+  
+  // Configuration selon l'environnement
+  const hostname = window.location.hostname;
+  const protocol = window.location.protocol;
+  
+  if (protocol === 'file:' || !hostname || hostname === '') {
+    // Fichier ouvert directement (file://) - forcer localhost
+    wsHost = 'localhost:8080';
+    console.log('📁 Détection: fichier local (file://), utilisation de localhost:8080');
+  } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    // Développement local
+    wsHost = 'localhost:8080';
+  } else {
+    // Production : essayer d'abord le même domaine, puis fallback
+    // IMPORTANT : En production, configurez votre serveur WebSocket sur le même domaine
+    // ou utilisez un sous-domaine dédié (ex: ws.votre-domaine.com)
+    wsHost = window.location.host;
+    
+    // Si vous avez un serveur WebSocket sur un autre domaine/port, décommentez :
+    // wsHost = 'votre-serveur-websocket.com:8080';
+  }
+  
+  // Validation de l'URL avant création
+  if (!wsHost || wsHost.trim() === '') {
+    console.error('❌ Erreur: impossible de déterminer l\'hôte WebSocket');
+    wsHost = 'localhost:8080'; // Fallback par défaut
+  }
   
   const wsUrl = `${wsProtocol}//${wsHost}`;
 
-  console.log(`🔌 Connexion au WebSocket: ${wsUrl}`);
+  console.log(`🔌 Tentative de connexion WebSocket (essai ${wsRetryCount + 1}/${WS_MAX_RETRIES}): ${wsUrl}`);
 
   try {
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
       wsConnected = true;
-      console.log('✅ WebSocket connecté');
+      resetWebSocketRetry(); // Réinitialiser le compteur de retry
+      console.log('✅ WebSocket connecté avec succès');
 
       // Envoyer la localisation si elle existe déjà dans la session
       if (sessionData.isLoggedIn && sessionData.email) {
@@ -2446,11 +2480,53 @@ function connectWebSocket() {
     ws.onerror = (error) => {
       console.error('⚠️ Erreur WebSocket:', error);
       wsConnected = false;
+      
+      // Message d'erreur plus explicite
+      if (wsRetryCount === 0) {
+        console.error(`❌ Impossible de se connecter au serveur WebSocket sur ${wsUrl}`);
+        console.error('Vérifiez que:');
+        console.error('1. Le serveur WebSocket est démarré (node server.js)');
+        console.error('2. Le port 8080 est accessible');
+        console.error('3. Votre pare-feu autorise les connexions WebSocket');
+      }
     };
 
   } catch (error) {
-    console.error('Erreur création WebSocket:', error);
+    console.error('❌ Erreur création WebSocket:', error);
     wsConnected = false;
+    
+    // Retry avec backoff exponentiel
+    if (wsRetryCount < WS_MAX_RETRIES) {
+      wsRetryCount++;
+      const retryDelay = WS_RETRY_DELAY * Math.pow(1.5, wsRetryCount - 1);
+      console.log(`🔄 Nouvelle tentative dans ${Math.round(retryDelay / 1000)}s...`);
+      
+      wsRetryTimeout = setTimeout(() => {
+        connectWebSocket();
+      }, retryDelay);
+    } else {
+      console.error('❌ Nombre maximum de tentatives atteint. WebSocket désactivé.');
+      console.error('Le site fonctionnera en mode dégradé (sans matching en temps réel).');
+      
+      // Afficher un message à l'utilisateur
+      if (document.getElementById('search-text')) {
+        const searchText = document.getElementById('search-text');
+        searchText.innerHTML = `<span style="color: #dc3545;">⚠️ Connexion au serveur impossible</span><br><br>
+          Le système de matching en temps réel n\'est pas disponible.<br>
+          Veuillez réessayer plus tard ou contacter le support.`;
+      }
+    }
+  }
+}
+
+/**
+ * Réinitialise le compteur de retry (appelé après une connexion réussie)
+ */
+function resetWebSocketRetry() {
+  wsRetryCount = 0;
+  if (wsRetryTimeout) {
+    clearTimeout(wsRetryTimeout);
+    wsRetryTimeout = null;
   }
 }
 

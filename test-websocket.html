@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test WebSocket - LOK IN</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 800px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+    h1 {
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 32px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    .status {
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .status.disconnected {
+      background: #fee;
+      color: #c33;
+      border: 2px solid #c33;
+    }
+    .status.connecting {
+      background: #fff3cd;
+      color: #856404;
+      border: 2px solid #ffc107;
+    }
+    .status.connected {
+      background: #d4edda;
+      color: #155724;
+      border: 2px solid #28a745;
+    }
+    .status .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    .status.disconnected .dot { background: #c33; }
+    .status.connecting .dot { background: #ffc107; }
+    .status.connected .dot { background: #28a745; }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+    .info-card {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 10px;
+      border-left: 4px solid #667eea;
+    }
+    .info-card .label {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .info-card .value {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+    }
+    .log-container {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 20px;
+      border-radius: 10px;
+      max-height: 400px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .log-entry {
+      margin: 5px 0;
+      padding: 5px;
+      border-left: 3px solid transparent;
+    }
+    .log-entry.info { color: #4fc3f7; border-left-color: #4fc3f7; }
+    .log-entry.success { color: #81c784; border-left-color: #81c784; }
+    .log-entry.error { color: #e57373; border-left-color: #e57373; }
+    .log-entry.warning { color: #ffb74d; border-left-color: #ffb74d; }
+    
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      flex: 1;
+    }
+    button.primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    button.secondary {
+      background: #f8f9fa;
+      color: #333;
+      border: 2px solid #ddd;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .test-section {
+      margin-top: 30px;
+      padding-top: 30px;
+      border-top: 2px solid #eee;
+    }
+    .test-section h3 {
+      color: #333;
+      margin-bottom: 15px;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔌 Test WebSocket</h1>
+    <p class="subtitle">Validez que votre connexion WebSocket fonctionne correctement</p>
+    
+    <div id="status" class="status disconnected">
+      <div class="dot"></div>
+      <span>Déconnecté</span>
+    </div>
+    
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="label">URL WebSocket</div>
+        <div class="value" id="ws-url">-</div>
+      </div>
+      <div class="info-card">
+        <div class="label">Protocol</div>
+        <div class="value" id="protocol">-</div>
+      </div>
+      <div class="info-card">
+        <div class="label">Tentatives</div>
+        <div class="value" id="retry-count">0</div>
+      </div>
+      <div class="info-card">
+        <div class="label">Client ID</div>
+        <div class="value" id="client-id">-</div>
+      </div>
+    </div>
+    
+    <div class="actions">
+      <button class="primary" id="btn-connect" onclick="connectTest()">Connecter</button>
+      <button class="secondary" id="btn-disconnect" onclick="disconnectTest()" disabled>Déconnecter</button>
+      <button class="secondary" onclick="clearLog()">Effacer logs</button>
+    </div>
+    
+    <div class="test-section">
+      <h3>📊 Logs de connexion</h3>
+      <div id="log" class="log-container">
+        <div class="log-entry info">En attente de connexion...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let ws = null;
+    let wsConnected = false;
+    let retryCount = 0;
+    const MAX_RETRIES = 5;
+    
+    function log(message, type = 'info') {
+      const logDiv = document.getElementById('log');
+      const timestamp = new Date().toLocaleTimeString('fr-FR');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = `[${timestamp}] ${message}`;
+      logDiv.appendChild(entry);
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+    
+    function clearLog() {
+      document.getElementById('log').innerHTML = '<div class="log-entry info">Logs effacés</div>';
+    }
+    
+    function updateStatus(status, text) {
+      const statusDiv = document.getElementById('status');
+      statusDiv.className = `status ${status}`;
+      statusDiv.innerHTML = `<div class="dot"></div><span>${text}</span>`;
+    }
+    
+    function updateRetryCount() {
+      document.getElementById('retry-count').textContent = retryCount;
+    }
+    
+    function connectTest() {
+      if (ws && wsConnected) {
+        log('Déjà connecté', 'warning');
+        return;
+      }
+      
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const hostname = window.location.hostname;
+      const protocol = window.location.protocol;
+      
+      let wsHost;
+      if (protocol === 'file:' || !hostname || hostname === '') {
+        // Fichier ouvert directement (file://) - forcer localhost
+        wsHost = 'localhost:8080';
+        log('📁 Détection: fichier local, utilisation de localhost:8080', 'info');
+      } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        wsHost = 'localhost:8080';
+      } else {
+        wsHost = window.location.host;
+      }
+      
+      // Validation
+      if (!wsHost || wsHost.trim() === '') {
+        log('❌ Erreur: impossible de déterminer l\'hôte WebSocket', 'error');
+        wsHost = 'localhost:8080'; // Fallback
+      }
+      
+      const wsUrl = `${wsProtocol}//${wsHost}`;
+      
+      document.getElementById('ws-url').textContent = wsUrl;
+      document.getElementById('protocol').textContent = wsProtocol === 'wss:' ? 'WSS (Sécurisé)' : 'WS';
+      
+      log(`🔌 Tentative de connexion à ${wsUrl}...`, 'info');
+      updateStatus('connecting', 'Connexion en cours...');
+      
+      try {
+        ws = new WebSocket(wsUrl);
+        
+        ws.onopen = () => {
+          wsConnected = true;
+          retryCount = 0;
+          updateRetryCount();
+          log('✅ Connexion établie avec succès !', 'success');
+          updateStatus('connected', 'Connecté');
+          
+          document.getElementById('btn-connect').disabled = true;
+          document.getElementById('btn-disconnect').disabled = false;
+        };
+        
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          log(`📨 Message reçu: ${JSON.stringify(data)}`, 'info');
+          
+          if (data.type === 'connected') {
+            document.getElementById('client-id').textContent = data.clientId;
+            log(`🆔 Client ID attribué: ${data.clientId}`, 'success');
+          }
+        };
+        
+        ws.onerror = (error) => {
+          log(`❌ Erreur WebSocket: ${error.message || 'Connexion refusée'}`, 'error');
+          updateStatus('disconnected', 'Erreur de connexion');
+          
+          retryCount++;
+          updateRetryCount();
+          
+          if (retryCount >= MAX_RETRIES) {
+            log(`⚠️ Nombre maximum de tentatives atteint (${MAX_RETRIES})`, 'warning');
+            log('Vérifiez que le serveur est bien démarré : node server.js', 'warning');
+          }
+        };
+        
+        ws.onclose = () => {
+          wsConnected = false;
+          log('🔌 Connexion fermée', 'warning');
+          updateStatus('disconnected', 'Déconnecté');
+          
+          document.getElementById('btn-connect').disabled = false;
+          document.getElementById('btn-disconnect').disabled = true;
+          
+          if (retryCount < MAX_RETRIES) {
+            const delay = 2000 * Math.pow(1.5, retryCount);
+            log(`🔄 Reconnexion dans ${Math.round(delay / 1000)}s...`, 'info');
+            setTimeout(connectTest, delay);
+          }
+        };
+        
+      } catch (error) {
+        log(`❌ Erreur lors de la création de la connexion: ${error.message}`, 'error');
+        updateStatus('disconnected', 'Erreur');
+      }
+    }
+    
+    function disconnectTest() {
+      if (ws) {
+        log('🛑 Déconnexion manuelle...', 'info');
+        ws.close();
+        ws = null;
+        wsConnected = false;
+        retryCount = MAX_RETRIES; // Empêcher la reconnexion auto
+        updateRetryCount();
+      }
+    }
+    
+    // Auto-connect au chargement
+    window.addEventListener('DOMContentLoaded', () => {
+      log('🚀 Page de test chargée', 'success');
+      log('Cliquez sur "Connecter" pour tester la connexion WebSocket', 'info');
+    });
+  </script>
+</body>
+</html>

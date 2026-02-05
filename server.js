@@ -2,7 +2,14 @@ const WebSocket = require('ws');
 
 // Configuration du serveur WebSocket
 const PORT = process.env.PORT || 8080;
-const wss = new WebSocket.Server({ port: PORT });
+const wss = new WebSocket.Server({ 
+  port: PORT,
+  // Permet les connexions cross-origin (nécessaire pour HTTPS → WS)
+  verifyClient: (info) => {
+    console.log(`📥 Nouvelle tentative de connexion depuis: ${info.origin || 'Origine inconnue'}`);
+    return true; // Accepter toutes les connexions (ajustez selon vos besoins)
+  }
+});
 
 // Stockage des utilisateurs connectés en mémoire
 // Structure: { clientId: { ws, name, lat, lng, timestamp, email, prenom, nom } }
@@ -658,8 +665,22 @@ setInterval(() => {
   });
 }, 30000);
 
-console.log(`🚀 Serveur WebSocket démarré sur le port ${PORT}`);
-console.log(`📡 En attente de connexions...`);
+console.log('╔════════════════════════════════════════════════╗');
+console.log('║   🚀 Serveur WebSocket LOK IN                 ║');
+console.log('╚════════════════════════════════════════════════╝');
+console.log('');
+console.log(`📍 Port: ${PORT}`);
+console.log(`🌐 Protocol: ws:// (local) / wss:// (production)`);
+console.log(`⏰ Démarré le: ${new Date().toLocaleString('fr-FR')}`);
+console.log('');
+console.log('📊 Statistiques:');
+console.log(`   - Utilisateurs connectés: 0`);
+console.log(`   - Files d'attente actives: 0`);
+console.log(`   - Professeurs disponibles: 0`);
+console.log('');
+console.log('✅ Serveur prêt à recevoir des connexions');
+console.log('📡 En attente...');
+console.log('');
 
 // Gestion de l'arrêt propre du serveur
 process.on('SIGTERM', () => {
