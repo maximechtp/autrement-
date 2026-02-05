@@ -3033,7 +3033,7 @@ function refuseCourseRequest(requestId) {
 function createGoogleMeet(request) {
   // Créer une salle Jitsi Meet (gratuit et instantané)
   const meetId = generateMeetId();
-  return `https://meet.jit.si/lokin-${meetId}`;
+  return `https://meet.jit.si/lokin-${meetId}#config.prejoinPageEnabled=false&config.requireDisplayName=false`;
 }
 
 // ===== TEACHER EARNINGS SYSTEM =====
