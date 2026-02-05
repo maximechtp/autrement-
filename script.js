@@ -2326,13 +2326,18 @@ function connectWebSocket() {
     // Développement local
     wsHost = 'localhost:8080';
   } else {
-    // Production : essayer d'abord le même domaine, puis fallback
-    // IMPORTANT : En production, configurez votre serveur WebSocket sur le même domaine
-    // ou utilisez un sous-domaine dédié (ex: ws.votre-domaine.com)
-    wsHost = window.location.host;
+    // Production : le serveur WebSocket n'est pas encore déployé
+    // Désactiver temporairement pour éviter les erreurs
+    console.warn('⚠️ WebSocket désactivé en production');
+    console.warn('📝 Pour activer : déployez server.js sur votre serveur et configurez l\'URL');
+    console.warn('💡 Le matching fonctionnera en mode dégradé (sans temps réel)');
     
-    // Si vous avez un serveur WebSocket sur un autre domaine/port, décommentez :
-    // wsHost = 'votre-serveur-websocket.com:8080';
+    // Ne pas tenter de connexion en production pour l'instant
+    displayMessage('Le matching en temps réel n\'est pas encore disponible. Utilisez le bouton "Arrêter la recherche" si nécessaire.', 'info');
+    return;
+    
+    // Configuration production (à activer une fois le serveur déployé) :
+    // wsHost = window.location.host; // ou 'ws.lokin.online'
   }
   
   // Validation de l'URL avant création
