@@ -2327,18 +2327,9 @@ function connectWebSocket() {
     // Développement local
     wsHost = 'localhost:8080';
   } else {
-    // Production : le serveur WebSocket n'est pas encore déployé
-    // Désactiver temporairement pour éviter les erreurs
-    console.warn('⚠️ WebSocket désactivé en production');
-    console.warn('📝 Pour activer : déployez server.js sur votre serveur et configurez l\'URL');
-    console.warn('💡 Le matching fonctionnera en mode dégradé (sans temps réel)');
-    
-    // Ne pas tenter de connexion en production pour l'instant
-    displayMessage('Le matching en temps réel n\'est pas encore disponible. Utilisez le bouton "Arrêter la recherche" si nécessaire.', 'info');
-    return;
-    
-    // Configuration production (à activer une fois le serveur déployé) :
-    // wsHost = window.location.host; // ou 'ws.lokin.online'
+    // Production : serveur WebSocket déployé sur Railway
+    wsHost = 'web-production-d08b0.up.railway.app';
+    console.log('🚀 Connexion au serveur Railway');
   }
   
   // Validation de l'URL avant création
