@@ -1880,11 +1880,14 @@ function showFoundProfile() {
 function createOrJoinMeet() {
   // Utiliser le lien Google Meet créé par le serveur lors du matching
   if (sessionData.meetLink) {
-    document.getElementById("meet-link").href = sessionData.meetLink;
-    document.getElementById("meet-info").textContent = `ID de réunion: ${sessionData.meetId || 'N/A'}`;
+    // Mettre à jour le profil du partenaire
+    updatePartnerProfile();
     
-    document.getElementById("call-status").textContent = 
-      `✅ Connexion établie avec ${sessionData.partnerName}!\n\nLe Google Meet a été créé. Cliquez sur "Rejoindre le Meet" pour commencer.`;
+    // Générer les avis utilisateurs
+    generateReviews();
+    
+    document.getElementById("meet-link").href = sessionData.meetLink;
+    document.getElementById("meet-info").textContent = `ID: ${sessionData.meetId || 'N/A'}`;
     
     goTo("call");
   } else {
@@ -1893,6 +1896,141 @@ function createOrJoinMeet() {
     alert('❌ Erreur: Aucun lien de réunion disponible.\n\nVeuillez réessayer.');
     goTo('eleve-options');
   }
+}
+
+function updatePartnerProfile() {
+  // Nom et prénom du partenaire
+  const partnerName = sessionData.partnerName || 'Utilisateur';
+  document.getElementById('partner-name').textContent = partnerName;
+  
+  // Classe du partenaire
+  const partnerClasse = sessionData.partnerClasse || 'Non spécifiée';
+  document.getElementById('partner-class').textContent = `Classe: ${partnerClasse}`;
+  
+  // Initiales pour l'avatar
+  const initials = getInitials(partnerName);
+  document.getElementById('partner-avatar-initial').textContent = initials;
+  
+  // Nombre d'appels (simulé - à remplacer par vraie data)
+  const partnerEmail = sessionData.partnerEmail || '';
+  const callsCount = getPartnerCallsCount(partnerEmail);
+  document.getElementById('partner-calls-count').textContent = callsCount;
+  
+  // Note moyenne (simulée - à remplacer par vraie data)
+  const rating = getPartnerRating(partnerEmail);
+  document.getElementById('partner-rating').textContent = rating.toFixed(1);
+}
+
+function getInitials(name) {
+  if (!name) return '??';
+  const parts = name.trim().split(' ');
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+}
+
+function getPartnerCallsCount(email) {
+  // Simuler un nombre d'appels basé sur l'email (pour démo)
+  // En production, récupérer depuis la base de données
+  if (!email) return Math.floor(Math.random() * 50) + 5;
+  
+  // Utiliser le hash de l'email pour un nombre constant
+  let hash = 0;
+  for (let i = 0; i < email.length; i++) {
+    hash = ((hash << 5) - hash) + email.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return Math.abs(hash % 100) + 10;
+}
+
+function getPartnerRating(email) {
+  // Simuler une note entre 4.0 et 5.0 (pour démo)
+  // En production, récupérer depuis la base de données
+  if (!email) return 4.5 + Math.random() * 0.5;
+  
+  let hash = 0;
+  for (let i = 0; i < email.length; i++) {
+    hash = ((hash << 5) - hash) + email.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return 4.0 + (Math.abs(hash % 10) / 10);
+}
+
+function generateReviews() {
+  const reviews = [
+    {
+      name: "Sophie Martin",
+      class: "Terminale S",
+      rating: 5,
+      text: "Super expérience ! J'ai pu trouver quelqu'un rapidement pour m'aider en maths. La personne était très pédagogue.",
+      date: "Il y a 2 jours"
+    },
+    {
+      name: "Lucas Dubois",
+      class: "Première ES",
+      rating: 5,
+      text: "Application géniale pour réviser ! Les débats sont vraiment enrichissants et permettent de voir d'autres points de vue.",
+      date: "Il y a 5 jours"
+    },
+    {
+      name: "Emma Leroy",
+      class: "Seconde",
+      rating: 4,
+      text: "Très pratique pour s'entraîner à l'oral. J'ai progressé en confiance grâce aux nombreux échanges.",
+      date: "Il y a 1 semaine"
+    },
+    {
+      name: "Thomas Bernard",
+      class: "Terminale L",
+      rating: 5,
+      text: "Les professeurs sont vraiment compétents et disponibles. Ça m'a beaucoup aidé pour préparer mon bac de philo.",
+      date: "Il y a 3 jours"
+    },
+    {
+      name: "Chloé Petit",
+      class: "Première S",
+      rating: 5,
+      text: "Interface simple et efficace. J'ai trouvé un partenaire pour réviser l'histoire en quelques secondes !",
+      date: "Il y a 1 semaine"
+    },
+    {
+      name: "Alexandre Moreau",
+      class: "Terminale ES",
+      rating: 4,
+      text: "Excellente plateforme d'entraide. Les échanges sont de qualité et tout le monde est bienveillant.",
+      date: "Il y a 4 jours"
+    }
+  ];
+  
+  const reviewsTrack = document.getElementById('reviews-track');
+  reviewsTrack.innerHTML = '';
+  
+  // Dupliquer les avis pour l'effet de défilement infini
+  const duplicatedReviews = [...reviews, ...reviews];
+  
+  duplicatedReviews.forEach(review => {
+    const reviewCard = document.createElement('div');
+    reviewCard.className = 'review-card';
+    
+    const initials = getInitials(review.name);
+    const stars = '⭐'.repeat(review.rating);
+    
+    reviewCard.innerHTML = `
+      <div class="review-header">
+        <div class="review-avatar">${initials}</div>
+        <div class="review-user-info">
+          <p class="review-user-name">${review.name}</p>
+          <p class="review-user-class">${review.class}</p>
+        </div>
+      </div>
+      <div class="review-stars">${stars}</div>
+      <p class="review-text">${review.text}</p>
+      <div class="review-date">${review.date}</div>
+    `;
+    
+    reviewsTrack.appendChild(reviewCard);
+  });
 }
 
 function generateMeetId() {
