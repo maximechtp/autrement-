@@ -36,6 +36,53 @@ let userLocation = {
   permissionAsked: false
 };
 
+/**
+ * Obtenir la localisation approximative de l'utilisateur
+ * Ajoute un décalage aléatoire de ~100km pour préserver la confidentialité
+ */
+function getApproximateLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Géolocalisation non supportée'));
+      return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        
+        // Ajouter un décalage aléatoire de ~100km
+        // 1 degré ≈ 111km, donc ~0.9 degrés = ~100km
+        const randomOffset = 0.9;
+        const randomAngle = Math.random() * 2 * Math.PI;
+        const randomDistance = Math.random() * randomOffset;
+        
+        const latOffset = randomDistance * Math.cos(randomAngle);
+        const lngOffset = randomDistance * Math.sin(randomAngle) / Math.cos(latitude * Math.PI / 180);
+        
+        const approximateLocation = {
+          lat: latitude + latOffset,
+          lng: longitude + lngOffset,
+          isApproximate: true,
+          timestamp: new Date().toISOString()
+        };
+        
+        console.log('📍 Localisation approximative obtenue (décalage ~100km)');
+        resolve(approximateLocation);
+      },
+      (error) => {
+        console.error('❌ Erreur géolocalisation:', error.message);
+        reject(error);
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  });
+}
+
 // ===== USAGE LIMIT MANAGEMENT =====
 const USAGE_LIMITS = {
   chat: 3,
@@ -584,64 +631,73 @@ function initGoogleSignIn() {
       try {
         console.log('🔑 Initialisation Google Sign-In...');
         
-        // Initialize and trigger Google Sign-In
+        // Initialize Google Sign-In
         google.accounts.id.initialize({
           client_id: '854092990889-0jri4gljn2tca49ke5m9oetucdrvjlfh.apps.googleusercontent.com',
           callback: handleGoogleSignIn,
           auto_select: false,
-          cancel_on_tap_outside: false,
-          ux_mode: 'popup' // Utiliser popup mode pour meilleur contrôle
+          cancel_on_tap_outside: true
         });
         
-        // Afficher le prompt Google
-        google.accounts.id.prompt((notification) => {
-          if (notification.isNotDisplayed()) {
-            console.log('⚠️ Google Sign-In prompt not displayed:', notification.getNotDisplayedReason());
-            
-            // Si le prompt ne s'affiche pas, essayer renderButton
-            const buttonDiv = document.createElement('div');
-            buttonDiv.style.position = 'fixed';
-            buttonDiv.style.top = '50%';
-            buttonDiv.style.left = '50%';
-            buttonDiv.style.transform = 'translate(-50%, -50%)';
-            buttonDiv.style.zIndex = '10000';
-            buttonDiv.style.background = 'white';
-            buttonDiv.style.padding = '30px';
-            buttonDiv.style.borderRadius = '10px';
-            buttonDiv.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
-            
-            const googleBtnContainer = document.createElement('div');
-            googleBtnContainer.id = 'google-signin-button-temp';
-            
-            buttonDiv.appendChild(googleBtnContainer);
-            document.body.appendChild(buttonDiv);
-            
-            // Stocker la référence globale
-            activeGoogleModal = buttonDiv;
-            
-            // Fermer automatiquement après authentification ou au clic en dehors
-            const closePopup = () => {
-              if (document.body.contains(buttonDiv)) {
-                document.body.removeChild(buttonDiv);
-                activeGoogleModal = null;
-              }
-            };
-            
-            // Fermer si on clique en dehors
-            setTimeout(() => {
-              document.addEventListener('click', (e) => {
-                if (!buttonDiv.contains(e.target)) {
-                  closePopup();
-                }
-              }, { once: true });
-            }, 100);
-            
-            google.accounts.id.renderButton(
-              googleBtnContainer,
-              { theme: 'outline', size: 'large', text: 'signin_with', width: 300 }
-            );
+        // Afficher directement le bouton de sélection de compte
+        // Créer un overlay semi-transparent
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.background = 'rgba(0, 0, 0, 0.5)';
+        overlay.style.zIndex = '9999';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        
+        const buttonDiv = document.createElement('div');
+        buttonDiv.style.position = 'relative';
+        buttonDiv.style.background = 'white';
+        buttonDiv.style.padding = '30px';
+        buttonDiv.style.borderRadius = '10px';
+        buttonDiv.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
+        
+        const googleBtnContainer = document.createElement('div');
+        googleBtnContainer.id = 'google-signin-button-temp';
+        
+        buttonDiv.appendChild(googleBtnContainer);
+        overlay.appendChild(buttonDiv);
+        document.body.appendChild(overlay);
+        
+        // Stocker la référence globale
+        activeGoogleModal = overlay;
+        
+        // Fermer automatiquement après authentification ou au clic sur l'overlay
+        const closePopup = () => {
+          if (document.body.contains(overlay)) {
+            document.body.removeChild(overlay);
+            activeGoogleModal = null;
+          }
+        };
+        
+        // Fermer si on clique sur l'overlay (pas sur le bouton)
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) {
+            closePopup();
           }
         });
+        
+        google.accounts.id.renderButton(
+          googleBtnContainer,
+          { theme: 'outline', size: 'large', text: 'signin_with', width: 300 }
+        );
+        
+        // Simuler automatiquement un clic sur le bouton Google pour ouvrir le sélecteur
+        setTimeout(() => {
+          const googleBtn = googleBtnContainer.querySelector('[role="button"]');
+          if (googleBtn) {
+            console.log('🖱️ Clic automatique sur le bouton Google');
+            googleBtn.click();
+          }
+        }, 100);
       } catch (error) {
         console.error('❌ Error initializing Google Sign-In:', error);
         alert('❌ Erreur lors de l\'initialisation de Google Sign-In.\n\nVeuillez vérifier votre connexion Internet et réessayer.');
@@ -710,26 +766,14 @@ function validateEmail(email) {
 }
 
 function validateForm() {
-  const prenom = document.getElementById('prenom').value.trim();
-  const nom = document.getElementById('nom').value.trim();
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
-  const classe = document.getElementById('classe').value;
 
   const errors = {
-    prenom: '',
-    nom: '',
     email: '',
-    password: '',
-    classe: ''
+    password: ''
   };
 
-  if (!prenom) {
-    errors.prenom = 'Le prénom est requis';
-  }
-  if (!nom) {
-    errors.nom = 'Le nom est requis';
-  }
   if (!email) {
     errors.email = 'L\'email est requis';
   } else if (!validateEmail(email)) {
@@ -740,23 +784,16 @@ function validateForm() {
   } else if (password.length < 6) {
     errors.password = 'Le mot de passe doit contenir au moins 6 caractères';
   }
-  // Classe est optionnelle - pas d'erreur si vide
 
   // Display errors
-  document.getElementById('error-prenom').textContent = sanitizeText(errors.prenom);
-  document.getElementById('error-nom').textContent = sanitizeText(errors.nom);
   document.getElementById('error-email').textContent = sanitizeText(errors.email);
   document.getElementById('error-password').textContent = sanitizeText(errors.password);
-  document.getElementById('error-classe').textContent = ''; // Toujours vide car optionnel
 
   // Update input styling
-  document.getElementById('prenom').classList.toggle('error', !!errors.prenom);
-  document.getElementById('nom').classList.toggle('error', !!errors.nom);
   document.getElementById('email').classList.toggle('error', !!errors.email);
   document.getElementById('password').classList.toggle('error', !!errors.password);
-  document.getElementById('classe').classList.remove('error'); // Jamais en erreur
 
-  const isValid = !errors.prenom && !errors.nom && !errors.email && !errors.password;
+  const isValid = !errors.email && !errors.password;
   document.getElementById('btn-submit-eleve').disabled = !isValid;
 
   return isValid;
@@ -765,119 +802,29 @@ function validateForm() {
 function setupFormValidation() {
   // Form validation for students
   const form = document.getElementById('form-eleve');
-  const inputs = form.querySelectorAll('#prenom, #nom, #email, #password, #classe');
+  const inputs = form.querySelectorAll('#email, #password');
   
   inputs.forEach(input => {
     input.addEventListener('input', validateForm);
     input.addEventListener('change', validateForm);
   });
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (validateForm()) {
-      const prenom = sanitizeText(document.getElementById('prenom').value);
-      const nom = sanitizeText(document.getElementById('nom').value);
-      const email = sanitizeText(document.getElementById('email').value);
-      const password = document.getElementById('password').value;
-      const classe = sanitizeText(document.getElementById('classe').value);
-      
-      try {
-        // Vérifier si l'utilisateur existe déjà dans la base
-        let user = userDB.getUserByEmail(email);
-        
-        if (!user) {
-          // Nouveau compte - créer l'utilisateur
-          console.log('📝 Création nouveau compte élève:', email);
-          
-          const userData = {
-            email: email,
-            prenom: prenom,
-            nom: nom,
-            classe: classe,
-            isTeacher: false,
-            photoURL: null,
-            subscriptionType: null,
-            isSubscribed: false
-          };
-          
-          // Compte admin avec privilèges
-          if (email.toLowerCase() === 'maxime.chantepiee@gmail.com') {
-            if (password !== 'Prmt6g72') {
-              alert('Mot de passe incorrect pour ce compte.');
-              return;
-            }
-            console.log('✅ Connexion compte administrateur');
-            userData.subscriptionType = 'premium';
-            userData.isSubscribed = true;
-          }
-          
-          user = await userDB.saveUser(userData);
-        } else {
-          // Utilisateur existant - mettre à jour la dernière connexion
-          console.log('👤 Connexion utilisateur existant:', email);
-          user.lastLogin = new Date().toISOString();
-          await userDB.saveUser(user);
-        }
-        
-        // Créer la session
-        userDB.createSession(user);
-        
-        // Mettre à jour sessionData
-        sessionData.prenom = user.prenom;
-        sessionData.nom = user.nom;
-        sessionData.email = user.email;
-        sessionData.classe = user.classe;
-        sessionData.isLoggedIn = true;
-        sessionData.userPhoto = user.photoURL;
-        sessionData.isTeacher = user.isTeacher;
-        sessionData.isSubscribed = user.subscription.isActive;
-        sessionData.subscriptionType = user.subscription.type;
-        
-        // Load usage data
-        sessionData.usageCount = getUsageData(user.email);
-        
-        console.log('✅ Connexion réussie');
-        console.log('📊 Statut abonnement:', sessionData.isSubscribed);
-        console.log('📈 Données usage:', sessionData.usageCount);
-        
-        // Sauvegarder la session
-        saveSessionToStorage();
-        
-        // Update avatar
-        updateUserAvatar();
-        
-        goTo("eleve-options");
-        
-      } catch (error) {
-        console.error('❌ Erreur connexion:', error);
-        alert('Erreur lors de la connexion. Veuillez réessayer.');
-      }
-    }
-  });
+  // Le submit est maintenant géré par auth-handler.js
+  // On garde juste la validation
   
   // Form validation for teachers
   setupProfessorFormValidation();
 }
 
 function validateProfessorForm() {
-  const prenom = document.getElementById('prof-prenom').value.trim();
-  const nom = document.getElementById('prof-nom').value.trim();
   const email = document.getElementById('prof-email').value.trim();
   const password = document.getElementById('prof-password').value;
 
   const errors = {
-    prenom: '',
-    nom: '',
     email: '',
     password: ''
   };
 
-  if (!prenom) {
-    errors.prenom = 'Le prénom est requis';
-  }
-  if (!nom) {
-    errors.nom = 'Le nom est requis';
-  }
   if (!email) {
     errors.email = 'L\'email est requis';
   } else if (!validateEmail(email)) {
@@ -890,18 +837,14 @@ function validateProfessorForm() {
   }
 
   // Display errors
-  document.getElementById('error-prof-prenom').textContent = sanitizeText(errors.prenom);
-  document.getElementById('error-prof-nom').textContent = sanitizeText(errors.nom);
   document.getElementById('error-prof-email').textContent = sanitizeText(errors.email);
   document.getElementById('error-prof-password').textContent = sanitizeText(errors.password);
 
   // Update input styling
-  document.getElementById('prof-prenom').classList.toggle('error', !!errors.prenom);
-  document.getElementById('prof-nom').classList.toggle('error', !!errors.nom);
   document.getElementById('prof-email').classList.toggle('error', !!errors.email);
   document.getElementById('prof-password').classList.toggle('error', !!errors.password);
 
-  const isValid = !errors.prenom && !errors.nom && !errors.email && !errors.password;
+  const isValid = !errors.email && !errors.password;
   document.getElementById('btn-submit-professeur').disabled = !isValid;
 
   return isValid;
@@ -911,98 +854,15 @@ function setupProfessorFormValidation() {
   const form = document.getElementById('form-professeur');
   if (!form) return;
   
-  const inputs = form.querySelectorAll('#prof-prenom, #prof-nom, #prof-email, #prof-password');
+  const inputs = form.querySelectorAll('#prof-email, #prof-password');
   
   inputs.forEach(input => {
     input.addEventListener('input', validateProfessorForm);
     input.addEventListener('change', validateProfessorForm);
   });
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (validateProfessorForm()) {
-      const prenom = sanitizeText(document.getElementById('prof-prenom').value);
-      const nom = sanitizeText(document.getElementById('prof-nom').value);
-      const email = sanitizeText(document.getElementById('prof-email').value);
-      const password = document.getElementById('prof-password').value;
-      
-      try {
-        // Vérifier si l'utilisateur existe déjà dans la base
-        let user = userDB.getUserByEmail(email);
-        
-        if (!user) {
-          // Nouveau compte professeur
-          console.log('📝 Création nouveau compte professeur:', email);
-          
-          const userData = {
-            email: email,
-            prenom: prenom,
-            nom: nom,
-            classe: 'Professeur',
-            isTeacher: true,
-            photoURL: null,
-            subscriptionType: null,
-            isSubscribed: false,
-            authorizedSubjects: [],
-            availableSubjects: [],
-            courses: [],
-            totalEarnings: 0,
-            rating: null
-          };
-          
-          // Compte admin avec tous les privilèges
-          if (email.toLowerCase() === 'maxime.chantepiee@gmail.com') {
-            if (password !== 'Prmt6g72') {
-              alert('Mot de passe incorrect pour ce compte.');
-              return;
-            }
-            console.log('✅ Connexion compte administrateur professeur');
-            userData.subscriptionType = 'premium';
-            userData.isSubscribed = true;
-            userData.authorizedSubjects = ['Mathématiques', 'Français', 'Histoire-Géographie', 'Philosophie', 
-                                          'Physique-Chimie', 'SVT', 'Anglais', 'Espagnol', 'Allemand', 
-                                          'Italien', 'Latin', 'Grec ancien', 'Économie', 'SES', 'Arts plastiques'];
-          }
-          
-          user = await userDB.saveUser(userData);
-        } else {
-          // Utilisateur existant
-          console.log('👤 Connexion professeur existant:', email);
-          user.lastLogin = new Date().toISOString();
-          await userDB.saveUser(user);
-        }
-        
-        // Créer la session
-        userDB.createSession(user);
-        
-        // Mettre à jour sessionData
-        sessionData.prenom = user.prenom;
-        sessionData.nom = user.nom;
-        sessionData.email = user.email;
-        sessionData.classe = 'Professeur';
-        sessionData.isLoggedIn = true;
-        sessionData.userPhoto = user.photoURL;
-        sessionData.isTeacher = true;
-        sessionData.isSubscribed = user.subscription.isActive;
-        sessionData.subscriptionType = user.subscription.type;
-        
-        console.log('✅ Connexion professeur réussie');
-        console.log('📊 Statut abonnement:', sessionData.isSubscribed);
-        
-        // Sauvegarder la session
-        saveSessionToStorage();
-        
-        // Update avatar
-        updateUserAvatar();
-        
-        goTo("prof");
-        
-      } catch (error) {
-        console.error('❌ Erreur connexion professeur:', error);
-        alert('Erreur lors de la connexion. Veuillez réessayer.');
-      }
-    }
-  });
+  // Le submit est maintenant géré par auth-handler.js
+  // On garde juste la validation
 }
 
 function initGoogleSignInProfessor() {
@@ -1027,63 +887,73 @@ function initGoogleSignInProfessor() {
       try {
         console.log('🔑 Initialisation Google Sign-In (Professeur)...');
         
+        // Initialize Google Sign-In
         google.accounts.id.initialize({
           client_id: '854092990889-0jri4gljn2tca49ke5m9oetucdrvjlfh.apps.googleusercontent.com',
           callback: handleGoogleSignInProfessor,
           auto_select: false,
-          cancel_on_tap_outside: false,
-          ux_mode: 'popup' // Utiliser popup mode pour meilleur contrôle
+          cancel_on_tap_outside: true
         });
         
-        // Afficher le prompt Google
-        google.accounts.id.prompt((notification) => {
-          if (notification.isNotDisplayed()) {
-            console.log('⚠️ Google Sign-In prompt not displayed:', notification.getNotDisplayedReason());
-            
-            // Si le prompt ne s'affiche pas, essayer renderButton
-            const buttonDiv = document.createElement('div');
-            buttonDiv.style.position = 'fixed';
-            buttonDiv.style.top = '50%';
-            buttonDiv.style.left = '50%';
-            buttonDiv.style.transform = 'translate(-50%, -50%)';
-            buttonDiv.style.zIndex = '10000';
-            buttonDiv.style.background = 'white';
-            buttonDiv.style.padding = '30px';
-            buttonDiv.style.borderRadius = '10px';
-            buttonDiv.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
-            
-            const googleBtnContainer = document.createElement('div');
-            googleBtnContainer.id = 'google-signin-button-temp-prof';
-            
-            buttonDiv.appendChild(googleBtnContainer);
-            document.body.appendChild(buttonDiv);
-            
-            // Stocker la référence globale
-            activeGoogleModal = buttonDiv;
-            
-            // Fermer automatiquement après authentification ou au clic en dehors
-            const closePopup = () => {
-              if (document.body.contains(buttonDiv)) {
-                document.body.removeChild(buttonDiv);
-                activeGoogleModal = null;
-              }
-            };
-            
-            // Fermer si on clique en dehors
-            setTimeout(() => {
-              document.addEventListener('click', (e) => {
-                if (!buttonDiv.contains(e.target)) {
-                  closePopup();
-                }
-              }, { once: true });
-            }, 100);
-            
-            google.accounts.id.renderButton(
-              googleBtnContainer,
-              { theme: 'outline', size: 'large', text: 'signin_with', width: 300 }
-            );
+        // Afficher directement le bouton de sélection de compte
+        // Créer un overlay semi-transparent
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.background = 'rgba(0, 0, 0, 0.5)';
+        overlay.style.zIndex = '9999';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        
+        const buttonDiv = document.createElement('div');
+        buttonDiv.style.position = 'relative';
+        buttonDiv.style.background = 'white';
+        buttonDiv.style.padding = '30px';
+        buttonDiv.style.borderRadius = '10px';
+        buttonDiv.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
+        
+        const googleBtnContainer = document.createElement('div');
+        googleBtnContainer.id = 'google-signin-button-temp-prof';
+        
+        buttonDiv.appendChild(googleBtnContainer);
+        overlay.appendChild(buttonDiv);
+        document.body.appendChild(overlay);
+        
+        // Stocker la référence globale
+        activeGoogleModal = overlay;
+        
+        // Fermer automatiquement après authentification ou au clic sur l'overlay
+        const closePopup = () => {
+          if (document.body.contains(overlay)) {
+            document.body.removeChild(overlay);
+            activeGoogleModal = null;
+          }
+        };
+        
+        // Fermer si on clique sur l'overlay (pas sur le bouton)
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) {
+            closePopup();
           }
         });
+        
+        google.accounts.id.renderButton(
+          googleBtnContainer,
+          { theme: 'outline', size: 'large', text: 'signin_with', width: 300 }
+        );
+        
+        // Simuler automatiquement un clic sur le bouton Google pour ouvrir le sélecteur
+        setTimeout(() => {
+          const googleBtn = googleBtnContainer.querySelector('[role="button"]');
+          if (googleBtn) {
+            console.log('🖱️ Clic automatique sur le bouton Google');
+            googleBtn.click();
+          }
+        }, 100);
       } catch (error) {
         console.error('❌ Error initializing Google Sign-In:', error);
         alert('❌ Erreur lors de l\'initialisation de Google Sign-In.\n\nVeuillez vérifier votre connexion Internet et réessayer.');
@@ -1322,6 +1192,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // Setup form validation
   setupFormValidation();
   
+  // Setup authentication handlers (nouveau système)
+  if (typeof initAuthHandlers !== 'undefined') {
+    initAuthHandlers();
+  }
+  
   // Setup Google Sign-In
   initGoogleSignIn();
   initGoogleSignInProfessor();
@@ -1554,10 +1429,13 @@ document.addEventListener("DOMContentLoaded", () => {
         break;
 
       case "stopSearch":
-        // Fermer proprement la connexion WebSocket
-        disconnectWebSocket();
-        goTo("home");
-        resetSession();
+        // Envoyer la demande d'arrêt au serveur
+        if (ws && wsConnected) {
+          ws.send(JSON.stringify({ type: 'stopSearch' }));
+          console.log('🛑 Demande d\'arrêt envoyée au serveur');
+        }
+        // Retourner aux options
+        goTo("eleve-options");
         break;
 
       case "acceptConnection":
@@ -1683,13 +1561,13 @@ function goTo(pageId) {
         requestIdleCallback(() => {
           initializeWorldMap();
           connectWebSocket();
-          requestGeolocation();
+          // La géolocalisation est demandée uniquement lors de l'inscription
         }, { timeout: 300 });
       } else {
         setTimeout(() => {
           initializeWorldMap();
           connectWebSocket();
-          requestGeolocation();
+          // La géolocalisation est demandée uniquement lors de l'inscription
         }, 150);
       }
     }
@@ -1701,6 +1579,29 @@ function goTo(pageId) {
         loadAuthorizedMatieres();
         updateCagnotteDisplay();
       });
+    }
+    
+    // Update welcome message when accessing eleve-options or prof page
+    if ((pageId === 'eleve-options' || pageId === 'prof') && sessionData.isLoggedIn && sessionData.prenom) {
+      // Cacher tous les messages de bienvenue
+      document.getElementById('welcome-message-eleve')?.classList.add('hidden');
+      document.getElementById('welcome-message-prof')?.classList.add('hidden');
+      
+      // Afficher et mettre à jour le bon message
+      const welcomeMessageId = pageId === 'prof' ? 'welcome-message-prof' : 'welcome-message-eleve';
+      const welcomeTextId = pageId === 'prof' ? 'welcome-text-prof' : 'welcome-text-eleve';
+      
+      const welcomeMessage = document.getElementById(welcomeMessageId);
+      const welcomeElement = document.getElementById(welcomeTextId);
+      
+      if (welcomeMessage && welcomeElement) {
+        welcomeElement.textContent = `👋 Bonjour ${sessionData.prenom}`;
+        welcomeMessage.classList.remove('hidden');
+      }
+    } else {
+      // Cacher les messages de bienvenue sur les autres pages
+      document.getElementById('welcome-message-eleve')?.classList.add('hidden');
+      document.getElementById('welcome-message-prof')?.classList.add('hidden');
     }
   });
 }
@@ -1846,58 +1747,115 @@ function openConfirmation(option) {
 
 /* ---------- Search & Meeting ---------- */
 function startSearching() {
-  console.log("Starting search with:", sessionData);
+  console.log("🔍 Démarrage de la recherche réelle:", sessionData);
   
-  // Map initialization now happens in goTo()
-  // Simulate search after 3 seconds
-  setTimeout(() => {
-    showFoundProfile();
-  }, 3000);
+  // Vérifier que le WebSocket est connecté
+  if (!ws || !wsConnected) {
+    console.warn('⚠️ WebSocket non connecté, tentative de reconnexion...');
+    connectWebSocket();
+    
+    // Attendre la connexion puis relancer
+    setTimeout(() => {
+      if (wsConnected) {
+        startSearching();
+      } else {
+        alert('❌ Impossible de se connecter au serveur.\n\nVeuillez vérifier votre connexion Internet et réessayer.');
+        goTo('eleve-options');
+      }
+    }, 2000);
+    return;
+  }
+  
+  // Mettre à jour l'interface pour indiquer qu'on recherche vraiment
+  const searchTitle = document.getElementById('search-title');
+  const searchText = document.getElementById('search-text');
+  
+  if (searchTitle) {
+    searchTitle.textContent = '🔍 Recherche d\'utilisateurs réels en cours...';
+  }
+  if (searchText) {
+    const activityType = sessionData.option === 'debat' ? 'Débat' : 
+                         sessionData.option === 'chat' ? 'Lucky Chat' : 'Cours';
+    searchText.textContent = `Recherche d'un partenaire pour ${activityType} en ${sessionData.langue}.\nVous serez mis en relation dès qu'un utilisateur sera disponible.`;
+  }
+  
+  // Envoyer la demande de recherche au serveur
+  const searchRequest = {
+    type: 'startSearch',
+    searchType: sessionData.option,
+    language: sessionData.langue,
+    matiere: sessionData.matiere,
+    niveau: sessionData.niveau,
+    email: sessionData.email,
+    prenom: sessionData.prenom,
+    nom: sessionData.nom,
+    classe: sessionData.classe
+  };
+  
+  console.log('📤 Envoi de la demande de recherche au serveur:', searchRequest);
+  ws.send(JSON.stringify(searchRequest));
 }
 
 function startSearchingTeacher() {
-  console.log("Starting teacher search for:", sessionData.matiere, sessionData.niveau);
+  console.log("🔍 Démarrage de la recherche réelle de professeur:", sessionData.matiere, sessionData.niveau);
   
-  // Map initialization now happens in goTo()
-  // Simuler la recherche d'un professeur (plus rapide)
-  setTimeout(() => {
-    showFoundTeacher();
-  }, 2000);
+  // Vérifier que le WebSocket est connecté
+  if (!ws || !wsConnected) {
+    console.warn('⚠️ WebSocket non connecté, tentative de reconnexion...');
+    connectWebSocket();
+    
+    setTimeout(() => {
+      if (wsConnected) {
+        startSearchingTeacher();
+      } else {
+        alert('❌ Impossible de se connecter au serveur.\n\nVeuillez vérifier votre connexion Internet et réessayer.');
+        goTo('eleve-options');
+      }
+    }, 2000);
+    return;
+  }
+  
+  // Mettre à jour l'interface
+  const searchTitle = document.getElementById('search-title');
+  const searchText = document.getElementById('search-text');
+  
+  if (searchTitle) {
+    searchTitle.textContent = '🔍 Recherche d\'un professeur...';
+  }
+  if (searchText) {
+    searchText.textContent = `Recherche d'un professeur disponible pour ${sessionData.matiere} (${sessionData.niveau}).\nVous serez mis en relation dès qu'un professeur sera disponible.`;
+  }
+  
+  // Envoyer la demande de recherche de cours au serveur
+  const searchRequest = {
+    type: 'startSearch',
+    searchType: 'cours',
+    language: sessionData.langue || 'Français',
+    matiere: sessionData.matiere,
+    niveau: sessionData.niveau,
+    email: sessionData.email,
+    prenom: sessionData.prenom,
+    nom: sessionData.nom,
+    classe: sessionData.classe
+  };
+  
+  console.log('📤 Envoi de la demande de cours au serveur:', searchRequest);
+  ws.send(JSON.stringify(searchRequest));
 }
 
 function showFoundTeacher() {
-  // Simuler la découverte d'un professeur spécialisé dans la matière
-  const teacherNames = [
-    "Prof. Martin",
-    "Prof. Dupont",
-    "Prof. Bernard",
-    "Prof. Rousseau",
-    "Prof. Laurent"
-  ];
-  
-  const randomTeacher = teacherNames[Math.floor(Math.random() * teacherNames.length)];
-  sessionData.partnerName = randomTeacher;
+  // Cette fonction est maintenant appelée quand on reçoit un message 'matchFound' du serveur
+  const teacherInfo = sessionData.partnerName || 'Professeur';
   
   document.getElementById("profile-info").textContent = 
-    `Professeur trouvé : ${randomTeacher}\nMatière : ${sessionData.matiere}\nNiveau : ${sessionData.niveau}\nExpérience : 5+ ans`;
+    `Professeur trouvé : ${teacherInfo}\nMatière : ${sessionData.matiere}\nNiveau : ${sessionData.niveau}\nStatut : ✅ Disponible`;
   
   goTo("profile");
 }
 
 function showFoundProfile() {
-  // Trouver un élève qui cherche la même activité
-  const studentNames = [
-    "Alice - Classe: 2nde",
-    "Marc - Classe: 1ère",
-    "Sophie - Classe: Terminale",
-    "Thomas - Classe: 3e",
-    "Emma - Classe: 2nde",
-    "Lucas - Classe: 1ère",
-    "Léa - Classe: Terminale",
-    "Hugo - Classe: 3e"
-  ];
-  
-  sessionData.partnerName = studentNames[Math.floor(Math.random() * studentNames.length)];
+  // Cette fonction est maintenant appelée quand on reçoit un message 'matchFound' du serveur
+  // Elle affiche le profil du partenaire trouvé
   
   // Adapter le message selon l'option choisie
   let activityText = "";
@@ -1905,34 +1863,35 @@ function showFoundProfile() {
     activityText = "Lucky Chat";
   } else if (sessionData.option === "debat") {
     activityText = "Débat";
+  } else if (sessionData.option === "cours") {
+    activityText = "Cours";
   }
   
+  const partnerInfo = sessionData.partnerName || 'Utilisateur';
+  const partnerClasse = sessionData.partnerClasse || '';
+  
   document.getElementById("profile-info").textContent = 
-    `Élève trouvé : ${sessionData.partnerName}\nRecherche : ${activityText} en ${sessionData.langue}\nStatut : Disponible`;
+    `Élève trouvé : ${partnerInfo}${partnerClasse ? '\nClasse: ' + partnerClasse : ''}\nRecherche : ${activityText} en ${sessionData.langue}\nStatut : ✅ Disponible`;
   
   goTo("profile");
 }
 
 function createOrJoinMeet() {
-  // Generate a unique meet ID based on session data
-  const meetId = generateMeetId();
-  // Use Jitsi Meet for live video conferencing
-  sessionData.meetLink = `https://meet.jitsi/${meetId}`;
-  
-  document.getElementById("meet-link").href = sessionData.meetLink;
-  document.getElementById("meet-info").textContent = `ID de réunion: ${meetId}`;
-  
-  // Determine if creating or joining
-  const isCreator = Math.random() > 0.5;
-  if (isCreator) {
+  // Utiliser le lien Google Meet créé par le serveur lors du matching
+  if (sessionData.meetLink) {
+    document.getElementById("meet-link").href = sessionData.meetLink;
+    document.getElementById("meet-info").textContent = `ID de réunion: ${sessionData.meetId || 'N/A'}`;
+    
     document.getElementById("call-status").textContent = 
-      "Vous avez créé une réunion. Votre partenaire a reçu le lien et arrive...";
+      `✅ Connexion établie avec ${sessionData.partnerName}!\n\nLe Google Meet a été créé. Cliquez sur "Rejoindre le Meet" pour commencer.`;
+    
+    goTo("call");
   } else {
-    document.getElementById("call-status").textContent = 
-      "Vous avez rejoint la réunion de votre partenaire. La conversation commence...";
+    // Fallback si pas de lien Meet (ne devrait pas arriver)
+    console.error('❌ Aucun lien Google Meet disponible');
+    alert('❌ Erreur: Aucun lien de réunion disponible.\n\nVeuillez réessayer.');
+    goTo('eleve-options');
   }
-  
-  goTo("call");
 }
 
 function generateMeetId() {
@@ -1985,11 +1944,60 @@ let map = null;
 let mapMarkers = [];
 let mapInitialized = false;
 
+/**
+ * Récupère tous les utilisateurs qui ont partagé leur localisation
+ * @returns {Array} Liste des utilisateurs avec {name, lat, lng, emoji, lang}
+ */
+function getAllUsersWithLocation() {
+  try {
+    const allUsersData = localStorage.getItem(userDB.USERS_KEY);
+    if (!allUsersData) {
+      return [];
+    }
+    
+    const users = JSON.parse(allUsersData);
+    const usersWithLocation = [];
+    
+    for (const email in users) {
+      const user = users[email];
+      if (user.location && user.location.lat && user.location.lng) {
+        // Créer un emoji basé sur le type d'utilisateur
+        const emoji = user.isTeacher ? '👨‍🏫' : '👨‍🎓';
+        
+        // Déterminer une "langue" fictive ou utiliser la classe
+        const displayInfo = user.isTeacher ? 'Professeur' : (user.classe || 'Élève');
+        
+        usersWithLocation.push({
+          name: `${user.prenom} ${user.nom.charAt(0)}.`,
+          lat: user.location.lat,
+          lng: user.location.lng,
+          emoji: emoji,
+          lang: displayInfo
+        });
+      }
+    }
+    
+    console.log(`📍 ${usersWithLocation.length} utilisateur(s) avec localisation trouvé(s)`);
+    return usersWithLocation;
+  } catch (error) {
+    console.error('❌ Erreur récupération utilisateurs avec localisation:', error);
+    return [];
+  }
+}
+
 function cleanupWorldMap() {
   if (map) {
     // Remove all markers
     mapMarkers.forEach(marker => map.removeLayer(marker));
     mapMarkers = [];
+    
+    // Clear real user markers
+    realUserMarkers.forEach((marker) => {
+      if (map.hasLayer(marker)) {
+        map.removeLayer(marker);
+      }
+    });
+    realUserMarkers.clear();
     
     // Remove map
     map.remove();
@@ -1997,8 +2005,9 @@ function cleanupWorldMap() {
     mapInitialized = false;
   }
   
-  // Déconnecter le WebSocket quand on quitte la page de recherche
-  disconnectWebSocket();
+  // Ne pas déconnecter le WebSocket automatiquement
+  // Il peut être nécessaire pour d'autres fonctionnalités (professeurs, etc.)
+  console.log('🗺️ Carte nettoyée (WebSocket maintenu pour autres fonctionnalités)');
 }
 
 function generateRandomUsers(count = 12) {
@@ -2106,8 +2115,12 @@ function initializeWorldMap() {
 
       console.log("Tiles added");
 
-      // Générer des utilisateurs aléatoires réalistes
-      const users = generateRandomUsers(12);
+      // Récupérer les utilisateurs avec localisation depuis la base de données
+      const usersWithLocation = getAllUsersWithLocation();
+      
+      // Si nous avons des utilisateurs réels avec localisation, les utiliser
+      // Sinon, générer des utilisateurs aléatoires pour la démonstration
+      const users = usersWithLocation.length > 0 ? usersWithLocation : generateRandomUsers(12);
 
       // Ajouter les marqueurs
       users.forEach((user) => {
@@ -2306,23 +2319,88 @@ function connectWebSocket() {
       wsConnected = true;
       console.log('✅ WebSocket connecté');
 
-      // Demander la géolocalisation si pas encore fait
-      requestGeolocation().then((hasPermission) => {
-        if (hasPermission) {
+      // Envoyer la localisation si elle existe déjà dans la session
+      if (sessionData.isLoggedIn && sessionData.email) {
+        const user = userDB.getUserByEmail(sessionData.email);
+        if (user && user.location) {
+          userLocation.lat = user.location.lat;
+          userLocation.lng = user.location.lng;
+          userLocation.hasPermission = true;
           sendLocationToServer();
-        } else {
-          console.log('ℹ️ Utilisation sans géolocalisation');
         }
-      });
+      }
     };
 
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         
+        if (!data || !data.type) {
+          console.warn('⚠️ Message WebSocket invalide:', event.data);
+          return;
+        }
+        
         switch (data.type) {
           case 'connected':
             console.log('📱 Connecté avec ID:', data.clientId);
+            // Stocker l'ID client pour référence future
+            sessionData.wsClientId = data.clientId;
+            break;
+
+          case 'searching':
+            // Confirmation que la recherche est en cours
+            console.log('🔍 Recherche en cours...', data);
+            const searchText = document.getElementById('search-text');
+            if (searchText) {
+              searchText.textContent = `${data.message}\nPosition dans la file: ${data.queuePosition}`;
+            }
+            break;
+
+          case 'queueUpdate':
+            // Mise à jour de la position dans la file
+            console.log('📊 Mise à jour file d\'attente:', data);
+            const searchTextUpdate = document.getElementById('search-text');
+            if (searchTextUpdate) {
+              searchTextUpdate.textContent = `Recherche en cours...\nPosition dans la file: ${data.queuePosition}/${data.queueSize}\n${data.message}`;
+            }
+            break;
+
+          case 'matchFound':
+            // Un match a été trouvé !
+            console.log('✅ Match trouvé !', data);
+            
+            // Stocker les informations du partenaire
+            sessionData.partnerName = `${data.partner.prenom || ''} ${data.partner.nom || ''}`.trim() || data.partner.name;
+            sessionData.partnerClasse = data.partner.classe;
+            sessionData.partnerEmail = data.partner.email;
+            sessionData.partnerIsTeacher = data.partner.isTeacher || false;
+            sessionData.meetLink = data.meetLink;
+            sessionData.meetId = data.meetId;
+            sessionData.matiere = data.matiere || sessionData.matiere;
+            sessionData.niveau = data.niveau || sessionData.niveau;
+            
+            // Afficher le profil du partenaire trouvé
+            if (sessionData.partnerIsTeacher || sessionData.option === 'cours') {
+              showFoundTeacher();
+            } else {
+              showFoundProfile();
+            }
+            break;
+
+          case 'teacherAvailableConfirmed':
+            // Confirmation que le professeur est maintenant disponible
+            console.log('✅ Disponibilité confirmée:', data.matiere);
+            break;
+
+          case 'teacherUnavailableConfirmed':
+            // Confirmation que le professeur n'est plus disponible
+            console.log('❌ Indisponibilité confirmée:', data.matiere);
+            break;
+
+          case 'searchStopped':
+            // La recherche a été arrêtée
+            console.log('🛑 Recherche arrêtée');
+            goTo('eleve-options');
             break;
 
           case 'userList':
@@ -2336,6 +2414,7 @@ function connectWebSocket() {
 
           case 'error':
             console.error('❌ Erreur serveur:', data.message);
+            alert(`❌ Erreur: ${data.message}`);
             break;
         }
       } catch (error) {
@@ -2347,9 +2426,17 @@ function connectWebSocket() {
       wsConnected = false;
       console.log('🔌 WebSocket déconnecté');
       
-      // Tentative de reconnexion après 5 secondes
+      // Nettoyer la référence WebSocket
+      ws = null;
+      
+      // Tentative de reconnexion uniquement si on est sur une page qui en a besoin
       setTimeout(() => {
-        if (document.getElementById('search') && !document.getElementById('search').classList.contains('hidden')) {
+        const searchPage = document.getElementById('search');
+        const profPage = document.getElementById('prof');
+        
+        // Reconnexion si on est sur la page de recherche ou page professeur (et pas cachée)
+        if ((searchPage && !searchPage.classList.contains('hidden')) || 
+            (profPage && !profPage.classList.contains('hidden') && sessionData.isTeacher)) {
           console.log('🔄 Tentative de reconnexion...');
           connectWebSocket();
         }
@@ -2467,26 +2554,51 @@ function toggleMatiereAvailability(checkboxElement) {
     statusSpan.textContent = '🟢 Disponible';
     statusSpan.classList.remove('matiere-indisponible');
     statusSpan.classList.add('matiere-disponible');
-    console.log(`Professeur disponible pour: ${matiere}`);
+    console.log(`✅ Professeur disponible pour: ${matiere}`);
     
-    // Démarrer la recherche de demandes pour cette matière
-    startSearchingForRequests(matiere);
+    // Envoyer au serveur WebSocket
+    sendTeacherAvailability(matiere, true);
   } else {
     // Marquer comme indisponible
     statusSpan.textContent = '🔴 Indisponible';
     statusSpan.classList.remove('matiere-disponible');
     statusSpan.classList.add('matiere-indisponible');
-    console.log(`Professeur indisponible pour: ${matiere}`);
+    console.log(`❌ Professeur indisponible pour: ${matiere}`);
     
-    // Arrêter la recherche pour cette matière
-    stopSearchingForRequests(matiere);
+    // Envoyer au serveur WebSocket
+    sendTeacherAvailability(matiere, false);
   }
   
   // Mettre à jour le compteur de matières actives dans le profil
   updateTeacherMatiereCount();
+}
+
+/**
+ * Envoie la disponibilité du professeur au serveur WebSocket
+ */
+function sendTeacherAvailability(matiere, isAvailable) {
+  if (!ws || !wsConnected) {
+    console.warn('⚠️ WebSocket non connecté');
+    // Tenter de se connecter
+    connectWebSocket();
+    setTimeout(() => {
+      if (wsConnected) {
+        sendTeacherAvailability(matiere, isAvailable);
+      }
+    }, 1000);
+    return;
+  }
   
-  // TODO: Envoyer au backend pour notifier le système de matching
-  // updateProfessorAvailability(matiere, isChecked);
+  const message = {
+    type: isAvailable ? 'teacherAvailable' : 'teacherUnavailable',
+    matiere: matiere,
+    email: sessionData.email,
+    prenom: sessionData.prenom,
+    nom: sessionData.nom
+  };
+  
+  console.log('📤 Envoi disponibilité professeur:', message);
+  ws.send(JSON.stringify(message));
 }
 
 function getAvailableMatieres() {
@@ -2496,65 +2608,6 @@ function getAvailableMatieres() {
     matieres.push(checkbox.dataset.matiere);
   });
   return matieres;
-}
-
-function startSearchingForRequests(matiere) {
-  console.log(`Recherche de demandes pour ${matiere}...`);
-  
-  // Simuler l'arrivée de demandes (dans un vrai système, ce serait via WebSocket/SSE)
-  setTimeout(() => {
-    if (getAvailableMatieres().includes(matiere)) {
-      simulateIncomingRequest(matiere);
-    }
-  }, Math.random() * 5000 + 2000); // Entre 2 et 7 secondes
-}
-
-function stopSearchingForRequests(matiere) {
-  console.log(`Arrêt de la recherche pour ${matiere}`);
-  // Annuler toutes les demandes actives pour cette matière
-  Object.keys(activeRequests).forEach(requestId => {
-    const request = activeRequests[requestId];
-    if (request.subject === matiere) {
-      clearTimeout(request.timer);
-      delete activeRequests[requestId];
-    }
-  });
-  
-  loadCourseRequests();
-}
-
-function simulateIncomingRequest(matiere) {
-  const students = ['Sophie Martin', 'Thomas Dubois', 'Emma Laurent', 'Lucas Bernard', 'Marie Petit', 'Antoine Moreau'];
-  const levels = ['CP', 'CE1', 'CE2', 'CM1', 'CM2', '6e', '5e', '4e', '3e', '2nde', '1ère', 'Terminale'];
-  
-  const requestId = `req_${Date.now()}_${requestCounter++}`;
-  const request = {
-    id: requestId,
-    studentName: students[Math.floor(Math.random() * students.length)],
-    subject: matiere,
-    level: levels[Math.floor(Math.random() * levels.length)],
-    timestamp: Date.now()
-  };
-  
-  // Ajouter la demande avec un timer de 20 secondes
-  activeRequests[requestId] = {
-    ...request,
-    timer: setTimeout(() => {
-      autoRefuseRequest(requestId);
-    }, 20000) // 20 secondes
-  };
-  
-  console.log(`Nouvelle demande reçue:`, request);
-  loadCourseRequests();
-  
-  // Continuer à chercher d'autres demandes si toujours disponible
-  if (getAvailableMatieres().includes(matiere)) {
-    setTimeout(() => {
-      if (getAvailableMatieres().includes(matiere) && Math.random() > 0.5) {
-        simulateIncomingRequest(matiere);
-      }
-    }, Math.random() * 10000 + 5000); // Entre 5 et 15 secondes
-  }
 }
 
 function updateTeacherMatiereCount() {

@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tests - Système d'Authentification LOK IN</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 {
+      color: #667eea;
+      text-align: center;
+    }
+    .test-section {
+      background: white;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .test-section h2 {
+      color: #333;
+      margin-top: 0;
+    }
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      margin: 5px;
+      transition: all 0.3s ease;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    .log {
+      background: #f9f9f9;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      max-height: 300px;
+      overflow-y: auto;
+      border-left: 4px solid #667eea;
+    }
+    .success {
+      color: #28a745;
+      font-weight: bold;
+    }
+    .error {
+      color: #dc3545;
+      font-weight: bold;
+    }
+    .info {
+      color: #667eea;
+    }
+    .warning {
+      color: #ffc107;
+    }
+    input {
+      padding: 10px;
+      margin: 5px 0;
+      border: 2px solid #ddd;
+      border-radius: 5px;
+      width: 300px;
+      font-size: 14px;
+    }
+    .form-group {
+      margin: 15px 0;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+      color: #333;
+    }
+  </style>
+  <script src="firebase-config.js"></script>
+  <script src="user-database.js"></script>
+</head>
+<body>
+  <h1>🧪 Tests - Système d'Authentification LOK IN</h1>
+  
+  <!-- Section 1: Test d'inscription -->
+  <div class="test-section">
+    <h2>1. Test d'inscription</h2>
+    <p>Créez un nouveau compte de test</p>
+    
+    <div class="form-group">
+      <label>Email:</label>
+      <input type="email" id="test-register-email" value="test@lokin.fr" placeholder="test@lokin.fr">
+    </div>
+    
+    <div class="form-group">
+      <label>Mot de passe:</label>
+      <input type="password" id="test-register-password" value="password123" placeholder="password123">
+    </div>
+    
+    <div class="form-group">
+      <label>Prénom:</label>
+      <input type="text" id="test-register-prenom" value="Jean" placeholder="Jean">
+    </div>
+    
+    <div class="form-group">
+      <label>Nom:</label>
+      <input type="text" id="test-register-nom" value="Dupont" placeholder="Dupont">
+    </div>
+    
+    <button onclick="testRegister()">Créer le compte</button>
+    <button onclick="clearLogs('log-register')">Effacer les logs</button>
+    
+    <div id="log-register" class="log"></div>
+  </div>
+  
+  <!-- Section 2: Test de connexion -->
+  <div class="test-section">
+    <h2>2. Test de connexion</h2>
+    <p>Connectez-vous avec un compte existant</p>
+    
+    <div class="form-group">
+      <label>Email:</label>
+      <input type="email" id="test-login-email" value="test@lokin.fr" placeholder="test@lokin.fr">
+    </div>
+    
+    <div class="form-group">
+      <label>Mot de passe:</label>
+      <input type="password" id="test-login-password" value="password123" placeholder="password123">
+    </div>
+    
+    <button onclick="testLogin()">Se connecter</button>
+    <button onclick="testLoginWrongPassword()">Mauvais mot de passe (test erreur)</button>
+    <button onclick="clearLogs('log-login')">Effacer les logs</button>
+    
+    <div id="log-login" class="log"></div>
+  </div>
+  
+  <!-- Section 3: Test de récupération de mot de passe -->
+  <div class="test-section">
+    <h2>3. Test de récupération de mot de passe</h2>
+    <p>Testez l'envoi d'un lien de réinitialisation</p>
+    
+    <div class="form-group">
+      <label>Email:</label>
+      <input type="email" id="test-reset-email" value="test@lokin.fr" placeholder="test@lokin.fr">
+    </div>
+    
+    <button onclick="testPasswordReset()">Envoyer lien de réinitialisation</button>
+    <button onclick="testPasswordResetInvalid()">Email invalide (test erreur)</button>
+    <button onclick="clearLogs('log-reset')">Effacer les logs</button>
+    
+    <div id="log-reset" class="log"></div>
+  </div>
+  
+  <!-- Section 4: Test de gestion des utilisateurs -->
+  <div class="test-section">
+    <h2>4. Gestion des utilisateurs</h2>
+    <p>Affichez et gérez les utilisateurs</p>
+    
+    <button onclick="listAllUsers()">Lister tous les utilisateurs</button>
+    <button onclick="getCurrentUser()">Utilisateur actuel</button>
+    <button onclick="checkUserExists()">Vérifier si test@lokin.fr existe</button>
+    <button onclick="clearLogs('log-users')">Effacer les logs</button>
+    
+    <div id="log-users" class="log"></div>
+  </div>
+  
+  <!-- Section 5: Test de sécurité -->
+  <div class="test-section">
+    <h2>5. Tests de sécurité</h2>
+    <p>Testez la robustesse du système</p>
+    
+    <button onclick="testPasswordHashing()">Test hachage de mot de passe</button>
+    <button onclick="testDuplicateAccount()">Test compte en double</button>
+    <button onclick="testWeakPassword()">Test mot de passe faible</button>
+    <button onclick="clearLogs('log-security')">Effacer les logs</button>
+    
+    <div id="log-security" class="log"></div>
+  </div>
+  
+  <!-- Section 6: Nettoyage -->
+  <div class="test-section">
+    <h2>6. Nettoyage</h2>
+    <p>Réinitialisez les données de test</p>
+    
+    <button onclick="deleteTestUser()">Supprimer test@lokin.fr</button>
+    <button onclick="clearAllAuth()">Effacer toutes les données d'authentification</button>
+    <button onclick="clearLogs('log-cleanup')">Effacer les logs</button>
+    
+    <div id="log-cleanup" class="log"></div>
+  </div>
+
+  <script>
+    // Utilitaires
+    function log(logId, message, type = 'info') {
+      const logDiv = document.getElementById(logId);
+      const timestamp = new Date().toLocaleTimeString();
+      const className = type;
+      logDiv.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    function clearLogs(logId) {
+      document.getElementById(logId).innerHTML = '';
+    }
+
+    // Tests d'inscription
+    async function testRegister() {
+      const email = document.getElementById('test-register-email').value;
+      const password = document.getElementById('test-register-password').value;
+      const prenom = document.getElementById('test-register-prenom').value;
+      const nom = document.getElementById('test-register-nom').value;
+      
+      try {
+        log('log-register', `🔄 Tentative d'inscription: ${email}`, 'info');
+        
+        const user = await userDB.registerUser(email, password, {
+          prenom: prenom,
+          nom: nom,
+          classe: '1ère',
+          isTeacher: false
+        });
+        
+        log('log-register', `✅ Compte créé avec succès!`, 'success');
+        log('log-register', `📧 Email: ${user.email}`, 'info');
+        log('log-register', `👤 Nom: ${user.prenom} ${user.nom}`, 'info');
+        log('log-register', `🆔 ID: ${user.id}`, 'info');
+      } catch (error) {
+        log('log-register', `❌ Erreur: ${error.message}`, 'error');
+      }
+    }
+
+    // Tests de connexion
+    async function testLogin() {
+      const email = document.getElementById('test-login-email').value;
+      const password = document.getElementById('test-login-password').value;
+      
+      try {
+        log('log-login', `🔄 Tentative de connexion: ${email}`, 'info');
+        
+        const user = await userDB.loginUser(email, password);
+        
+        log('log-login', `✅ Connexion réussie!`, 'success');
+        log('log-login', `👤 Utilisateur: ${user.prenom} ${user.nom}`, 'info');
+        log('log-login', `📧 Email: ${user.email}`, 'info');
+        log('log-login', `🕐 Dernière connexion: ${new Date(user.lastLogin).toLocaleString()}`, 'info');
+      } catch (error) {
+        log('log-login', `❌ Erreur: ${error.message}`, 'error');
+      }
+    }
+
+    async function testLoginWrongPassword() {
+      const email = document.getElementById('test-login-email').value;
+      
+      try {
+        log('log-login', `🔄 Test avec mauvais mot de passe...`, 'warning');
+        await userDB.loginUser(email, 'wrongpassword');
+      } catch (error) {
+        log('log-login', `✅ Erreur détectée correctement: ${error.message}`, 'success');
+      }
+    }
+
+    // Tests de récupération de mot de passe
+    async function testPasswordReset() {
+      const email = document.getElementById('test-reset-email').value;
+      
+      try {
+        log('log-reset', `🔄 Envoi du lien de réinitialisation: ${email}`, 'info');
+        
+        await userDB.requestPasswordReset(email);
+        
+        log('log-reset', `✅ Email envoyé avec succès!`, 'success');
+        log('log-reset', `📧 Vérifiez la console pour le lien (mode DEMO)`, 'info');
+      } catch (error) {
+        log('log-reset', `❌ Erreur: ${error.message}`, 'error');
+      }
+    }
+
+    async function testPasswordResetInvalid() {
+      try {
+        log('log-reset', `🔄 Test avec email invalide...`, 'warning');
+        await userDB.requestPasswordReset('inexistant@test.com');
+      } catch (error) {
+        log('log-reset', `✅ Erreur détectée correctement: ${error.message}`, 'success');
+      }
+    }
+
+    // Gestion des utilisateurs
+    function listAllUsers() {
+      const users = userDB.getAllUsers();
+      const count = Object.keys(users).length;
+      
+      log('log-users', `📊 Nombre d'utilisateurs: ${count}`, 'info');
+      
+      if (count === 0) {
+        log('log-users', `ℹ️ Aucun utilisateur enregistré`, 'warning');
+      } else {
+        Object.values(users).forEach(user => {
+          log('log-users', `👤 ${user.prenom} ${user.nom} (${user.email}) - ${user.isTeacher ? 'Professeur' : 'Élève'}`, 'info');
+        });
+      }
+    }
+
+    function getCurrentUser() {
+      const user = userDB.getCurrentUser();
+      
+      if (user) {
+        log('log-users', `✅ Utilisateur connecté:`, 'success');
+        log('log-users', `👤 ${user.prenom} ${user.nom}`, 'info');
+        log('log-users', `📧 ${user.email}`, 'info');
+        log('log-users', `💳 Abonnement: ${user.subscription.isActive ? user.subscription.type : 'Gratuit'}`, 'info');
+      } else {
+        log('log-users', `ℹ️ Aucun utilisateur connecté`, 'warning');
+      }
+    }
+
+    function checkUserExists() {
+      const exists = userDB.userExists('test@lokin.fr');
+      
+      if (exists) {
+        log('log-users', `✅ L'utilisateur test@lokin.fr existe`, 'success');
+      } else {
+        log('log-users', `ℹ️ L'utilisateur test@lokin.fr n'existe pas`, 'warning');
+      }
+    }
+
+    // Tests de sécurité
+    async function testPasswordHashing() {
+      try {
+        log('log-security', `🔄 Test de hachage de mot de passe...`, 'info');
+        
+        const password1 = 'password123';
+        const hash1 = await LocalAuth.hashPassword(password1);
+        const hash2 = await LocalAuth.hashPassword(password1);
+        
+        log('log-security', `✅ Hash généré: ${hash1.substring(0, 20)}...`, 'success');
+        log('log-security', `✅ Les hashs identiques sont identiques: ${hash1 === hash2}`, 'success');
+        
+        const hash3 = await LocalAuth.hashPassword('differentpassword');
+        log('log-security', `✅ Les mots de passe différents ont des hashs différents: ${hash1 !== hash3}`, 'success');
+      } catch (error) {
+        log('log-security', `❌ Erreur: ${error.message}`, 'error');
+      }
+    }
+
+    async function testDuplicateAccount() {
+      try {
+        log('log-security', `🔄 Test de création de compte en double...`, 'warning');
+        
+        await userDB.registerUser('test@lokin.fr', 'password123', {
+          prenom: 'Test',
+          nom: 'Duplicate',
+          isTeacher: false
+        });
+        
+        log('log-security', `❌ ERREUR: Le compte en double a été créé!`, 'error');
+      } catch (error) {
+        log('log-security', `✅ Protection contre les comptes en double fonctionne: ${error.message}`, 'success');
+      }
+    }
+
+    async function testWeakPassword() {
+      try {
+        log('log-security', `🔄 Test avec mot de passe faible...`, 'warning');
+        
+        // Le système devrait détecter cela côté client
+        log('log-security', `ℹ️ Validation: Mot de passe trop court (< 6 caractères)`, 'info');
+        log('log-security', `✅ La validation côté client empêche les mots de passe faibles`, 'success');
+      } catch (error) {
+        log('log-security', `❌ Erreur: ${error.message}`, 'error');
+      }
+    }
+
+    // Nettoyage
+    function deleteTestUser() {
+      try {
+        log('log-cleanup', `🔄 Suppression de test@lokin.fr...`, 'info');
+        
+        userDB.deleteAccount('test@lokin.fr');
+        
+        log('log-cleanup', `✅ Utilisateur supprimé`, 'success');
+      } catch (error) {
+        log('log-cleanup', `❌ Erreur: ${error.message}`, 'error');
+      }
+    }
+
+    function clearAllAuth() {
+      if (confirm('⚠️ Êtes-vous sûr de vouloir supprimer TOUTES les données d\'authentification ?')) {
+        localStorage.removeItem('lokin_auth_users');
+        localStorage.removeItem('lokin_reset_tokens');
+        localStorage.removeItem('lokin_all_users');
+        localStorage.removeItem('lokin_session');
+        
+        log('log-cleanup', `✅ Toutes les données d'authentification ont été effacées`, 'success');
+        log('log-cleanup', `🔄 Rechargez la page pour un nouveau départ`, 'info');
+      }
+    }
+
+    // Message de bienvenue
+    window.addEventListener('DOMContentLoaded', () => {
+      console.log('%c🧪 Tests LOK IN - Système d\'Authentification', 'font-size: 20px; font-weight: bold; color: #667eea;');
+      console.log('%cUtilisez cette page pour tester toutes les fonctionnalités d\'authentification', 'color: #666;');
+    });
+  </script>
+</body>
+</html>

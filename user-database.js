@@ -54,6 +54,9 @@ class UserDatabase {
           rating: userData.rating || null
         } : null,
         
+        // Géolocalisation approximative (~100km)
+        location: userData.location || null, // { lat, lng, isApproximate, timestamp }
+        
         // Métadonnées
         createdAt: userData.createdAt || new Date().toISOString(),
         lastLogin: new Date().toISOString(),
@@ -110,17 +113,29 @@ class UserDatabase {
    */
   async loginUser(email, password) {
     try {
-      const user = this.getUserByEmail(email);
-      
-      if (!user) {
-        // Nouvel utilisateur - créer le compte
-        console.log('📝 Création nouveau compte pour:', email);
-        return null;
+      // Vérifier avec le système d'authentification
+      const authResult = await window.LocalAuth.signIn(email, password);
+      if (!authResult || !authResult.user) {
+        throw new Error('Identifiants incorrects');
       }
 
-      // Mettre à jour la date de dernière connexion
-      user.lastLogin = new Date().toISOString();
-      await this.saveUser(user);
+      // Récupérer ou créer le profil utilisateur dans la base de données
+      let user = this.getUserByEmail(email);
+      
+      if (!user) {
+        // Créer le profil utilisateur si première connexion
+        user = await this.saveUser({
+          email: email,
+          prenom: authResult.user.displayName || '',
+          nom: '',
+          classe: '',
+          isTeacher: false
+        });
+      } else {
+        // Mettre à jour la date de dernière connexion
+        user.lastLogin = new Date().toISOString();
+        await this.saveUser(user);
+      }
 
       // Créer une session
       this.createSession(user);
@@ -129,6 +144,62 @@ class UserDatabase {
       return user;
     } catch (error) {
       console.error('❌ Erreur connexion:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Enregistre un nouvel utilisateur
+   */
+  async registerUser(email, password, userData) {
+    try {
+      // Créer le compte d'authentification
+      const displayName = `${userData.prenom || ''} ${userData.nom || ''}`.trim();
+      const authResult = await window.LocalAuth.createUser(email, password, displayName);
+      
+      if (!authResult || !authResult.user) {
+        throw new Error('Erreur lors de la création du compte');
+      }
+
+      // Créer le profil utilisateur complet dans la base de données
+      const user = await this.saveUser({
+        email: email,
+        prenom: userData.prenom || '',
+        nom: userData.nom || '',
+        classe: userData.classe || '',
+        isTeacher: userData.isTeacher || false,
+        photoURL: userData.photoURL || null
+      });
+
+      // Créer une session
+      this.createSession(user);
+
+      console.log('✅ Utilisateur enregistré:', user.email);
+      return user;
+    } catch (error) {
+      console.error('❌ Erreur enregistrement:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Vérifie si un utilisateur existe déjà
+   */
+  userExists(email) {
+    const user = window.LocalAuth.getUserByEmail(email);
+    return user !== null;
+  }
+
+  /**
+   * Demande de réinitialisation de mot de passe
+   */
+  async requestPasswordReset(email) {
+    try {
+      await window.LocalAuth.sendPasswordReset(email);
+      console.log('✅ Email de réinitialisation envoyé:', email);
+      return true;
+    } catch (error) {
+      console.error('❌ Erreur envoi email réinitialisation:', error);
       throw error;
     }
   }

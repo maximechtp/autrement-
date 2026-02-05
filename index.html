@@ -6,14 +6,19 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>📚</text></svg>">
   <link rel="stylesheet" href="style.css?v=3">
   <link rel="stylesheet" href="teacher-styles.css">
+  <link rel="stylesheet" href="auth-styles.css">
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600;700&display=swap" rel="stylesheet">
   <!-- Leaflet.js for map -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <!-- Google Sign-In -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <!-- Firebase Config -->
+  <script src="firebase-config.js"></script>
   <!-- User Database -->
   <script src="user-database.js"></script>
+  <!-- Auth Handler -->
+  <script src="auth-handler.js"></script>
   <!-- Stripe Payment System -->
   <script src="stripe-payment.js"></script>
 </head>
@@ -100,20 +105,8 @@
   <h2 id="eleve-title">Élève</h2>
   <div class="login-container">
     <div class="login-form-section">
-      <h3 class="login-method-title">Connexion avec vos informations</h3>
+      <h3 class="login-method-title">Connexion</h3>
       <form id="form-eleve" novalidate>
-        <div class="form-group">
-          <label for="prenom">Prénom <span aria-label="obligatoire">*</span></label>
-          <input id="prenom" type="text" placeholder="Entrez votre prénom" required aria-describedby="error-prenom">
-          <span class="error-message" id="error-prenom" role="alert"></span>
-        </div>
-        
-        <div class="form-group">
-          <label for="nom">Nom <span aria-label="obligatoire">*</span></label>
-          <input id="nom" type="text" placeholder="Entrez votre nom" required aria-describedby="error-nom">
-          <span class="error-message" id="error-nom" role="alert"></span>
-        </div>
-        
         <div class="form-group">
           <label for="email">Email <span aria-label="obligatoire">*</span></label>
           <input id="email" type="email" placeholder="exemple@email.com" required aria-describedby="error-email">
@@ -126,34 +119,16 @@
           <span class="error-message" id="error-password" role="alert"></span>
         </div>
         
-        <div class="form-group">
-          <label for="classe">Classe <span class="optional-label">(optionnel)</span></label>
-          <select id="classe" aria-describedby="error-classe">
-            <option value="">–– Sélectionnez une classe (optionnel) ––</option>
-            <option>CP</option>
-            <option>CE1</option>
-            <option>CE2</option>
-            <option>CM1</option>
-            <option>CM2</option>
-            <option>6e</option>
-            <option>5e</option>
-            <option>4e</option>
-            <option>3e</option>
-            <option>2nde</option>
-            <option>1ère</option>
-            <option>Terminale</option>
-            <option>Études supérieures</option>
-            <option>Autre / Non étudiant</option>
-          </select>
-          <span class="error-message" id="error-classe" role="alert"></span>
-        </div>
-        
         <button id="btn-submit-eleve" type="submit" disabled aria-label="Se connecter">Se connecter</button>
       </form>
     </div>
     
     <div class="login-divider">
       <span>OU</span>
+      <div class="auth-links">
+        <button id="btn-create-account-eleve" type="button" class="btn-link">Créer un profil</button>
+        <button id="btn-forgot-password-eleve" type="button" class="btn-link">Mot de passe oublié ?</button>
+      </div>
     </div>
     
     <div class="login-google-section">
@@ -179,20 +154,8 @@
   <h2 id="professeur-title">Professeur</h2>
   <div class="login-container">
     <div class="login-form-section">
-      <h3 class="login-method-title">Connexion avec vos informations</h3>
+      <h3 class="login-method-title">Connexion</h3>
       <form id="form-professeur" novalidate>
-        <div class="form-group">
-          <label for="prof-prenom">Prénom <span aria-label="obligatoire">*</span></label>
-          <input id="prof-prenom" type="text" placeholder="Entrez votre prénom" required aria-describedby="error-prof-prenom">
-          <span class="error-message" id="error-prof-prenom" role="alert"></span>
-        </div>
-        
-        <div class="form-group">
-          <label for="prof-nom">Nom <span aria-label="obligatoire">*</span></label>
-          <input id="prof-nom" type="text" placeholder="Entrez votre nom" required aria-describedby="error-prof-nom">
-          <span class="error-message" id="error-prof-nom" role="alert"></span>
-        </div>
-        
         <div class="form-group">
           <label for="prof-email">Email <span aria-label="obligatoire">*</span></label>
           <input id="prof-email" type="email" placeholder="exemple@email.com" required aria-describedby="error-prof-email">
@@ -211,6 +174,10 @@
     
     <div class="login-divider">
       <span>OU</span>
+      <div class="auth-links">
+        <button id="btn-create-account-prof" type="button" class="btn-link">Créer un profil</button>
+        <button id="btn-forgot-password-prof" type="button" class="btn-link">Mot de passe oublié ?</button>
+      </div>
     </div>
     
     <div class="login-google-section">
@@ -335,6 +302,10 @@
   <button data-action="logout" class="btn-secondary" style="margin-top: 30px;">🚪 Se déconnecter</button>
 </div>
 
+<div class="welcome-message hidden" id="welcome-message-eleve">
+  <h2 id="welcome-text-eleve">👋 Bonjour !</h2>
+</div>
+
 <div id="eleve-options" class="page hidden">
   <h2 id="options-title">Choisissez une option</h2>
   <button data-action="chooseOption" data-param="cours" aria-label="Sélectionner cours de 20 minutes">📚 Cours 20 min</button>
@@ -371,6 +342,10 @@
   <button data-action="copyMeetLink">Copier le lien</button>
   <button data-action="startDebate">Commencer le débat</button>
   <button data-action="goTo" data-param="home" class="btn-secondary">Annuler</button>
+</div>
+
+<div class="welcome-message hidden" id="welcome-message-prof">
+  <h2 id="welcome-text-prof">👋 Bonjour !</h2>
 </div>
 
 <div id="prof" class="page hidden">
@@ -594,6 +569,11 @@
 <div id="search" class="page hidden">
   <h2 id="search-title">Recherche en cours...</h2>
   <p id="search-text">Recherche d'un partenaire disponible.</p>
+  <div class="info-box">
+    <p>ℹ️ <strong>Système de matching réel</strong></p>
+    <p>Vous êtes maintenant dans une file d'attente avec de vrais utilisateurs qui recherchent la même langue et le même type d'activité que vous.</p>
+    <p>Dès qu'un utilisateur correspondant sera trouvé, vous serez automatiquement mis en relation via Google Meet.</p>
+  </div>
   
   <div id="world-map-container">
     <h3>🌍 Utilisateurs Connectés à Travers le Monde 🌍</h3>
@@ -658,6 +638,94 @@
   <h2 id="waiting-title">En attente d'élèves...</h2>
   <p>Disponible pour les matières sélectionnées.</p>
   <button data-action="stopProfWaiting">Arrêter</button>
+</div>
+
+<!-- Modal de création de profil -->
+<div id="modal-create-account" class="modal hidden">
+  <div class="modal-content">
+    <button class="modal-close" aria-label="Fermer">&times;</button>
+    <h2 class="modal-title">Créer un profil</h2>
+    <form id="form-create-account" novalidate>
+      <div class="form-group">
+        <label for="new-prenom">Prénom <span aria-label="obligatoire">*</span></label>
+        <input id="new-prenom" type="text" placeholder="Entrez votre prénom" required>
+        <span class="error-message" id="error-new-prenom" role="alert"></span>
+      </div>
+      
+      <div class="form-group">
+        <label for="new-nom">Nom <span aria-label="obligatoire">*</span></label>
+        <input id="new-nom" type="text" placeholder="Entrez votre nom" required>
+        <span class="error-message" id="error-new-nom" role="alert"></span>
+      </div>
+      
+      <div class="form-group">
+        <label for="new-email">Email <span aria-label="obligatoire">*</span></label>
+        <input id="new-email" type="email" placeholder="exemple@email.com" required>
+        <span class="error-message" id="error-new-email" role="alert"></span>
+      </div>
+      
+      <div class="form-group">
+        <label for="new-password">Mot de passe <span aria-label="obligatoire">*</span></label>
+        <input id="new-password" type="password" placeholder="Au moins 6 caractères" required>
+        <span class="error-message" id="error-new-password" role="alert"></span>
+      </div>
+      
+      <div class="form-group">
+        <label for="new-password-confirm">Confirmer le mot de passe <span aria-label="obligatoire">*</span></label>
+        <input id="new-password-confirm" type="password" placeholder="Confirmer le mot de passe" required>
+        <span class="error-message" id="error-new-password-confirm" role="alert"></span>
+      </div>
+      
+      <div class="form-group" id="new-classe-group">
+        <label for="new-classe">Classe <span class="optional-label">(optionnel)</span></label>
+        <select id="new-classe">
+          <option value="">–– Sélectionnez une classe (optionnel) ––</option>
+          <option>CP</option>
+          <option>CE1</option>
+          <option>CE2</option>
+          <option>CM1</option>
+          <option>CM2</option>
+          <option>6e</option>
+          <option>5e</option>
+          <option>4e</option>
+          <option>3e</option>
+          <option>2nde</option>
+          <option>1ère</option>
+          <option>Terminale</option>
+          <option>Études supérieures</option>
+          <option>Autre / Non étudiant</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="new-enable-location" checked>
+          <span>📍 Partager ma localisation approximative (à ~100km près)</span>
+        </label>
+        <p class="help-text">Cela permettra d'afficher votre position sur la carte pour faciliter les recherches de débats et professeurs à proximité. Votre adresse exacte ne sera jamais partagée.</p>
+      </div>
+      
+      <button type="submit" class="btn-primary" id="btn-create-account-submit">Créer mon compte</button>
+    </form>
+  </div>
+</div>
+
+<!-- Modal de récupération de mot de passe -->
+<div id="modal-forgot-password" class="modal hidden">
+  <div class="modal-content">
+    <button class="modal-close" aria-label="Fermer">&times;</button>
+    <h2 class="modal-title">Réinitialiser votre mot de passe</h2>
+    <p class="modal-description">Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de passe.</p>
+    <form id="form-forgot-password" novalidate>
+      <div class="form-group">
+        <label for="reset-email">Email <span aria-label="obligatoire">*</span></label>
+        <input id="reset-email" type="email" placeholder="exemple@email.com" required>
+        <span class="error-message" id="error-reset-email" role="alert"></span>
+      </div>
+      
+      <button type="submit" class="btn-primary" id="btn-reset-password-submit">Envoyer le lien</button>
+    </form>
+  </div>
 </div>
 
 <footer class="global-footer">

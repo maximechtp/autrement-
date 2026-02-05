@@ -5,12 +5,27 @@ const PORT = process.env.PORT || 8080;
 const wss = new WebSocket.Server({ port: PORT });
 
 // Stockage des utilisateurs connectés en mémoire
-// Structure: { clientId: { ws, name, lat, lng, timestamp } }
+// Structure: { clientId: { ws, name, lat, lng, timestamp, email, prenom, nom } }
 const connectedUsers = new Map();
+
+// Files d'attente pour le matching d'utilisateurs
+// Structure: { 'debat:Français': [clientId1, clientId2, ...], 'chat:Anglais': [...], ... }
+const matchingQueues = new Map();
+
+// Professeurs disponibles par matière
+// Structure: { 'Mathématiques': [clientId1, clientId2, ...], 'Français': [...], ... }
+const availableTeachers = new Map();
 
 // Génère un ID unique pour chaque client
 function generateClientId() {
   return `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+// Génère un ID unique pour une room Google Meet
+function generateMeetId() {
+  const timestamp = Date.now().toString(36);
+  const randomStr = Math.random().toString(36).substring(2, 10);
+  return `lokin-${timestamp}-${randomStr}`;
 }
 
 // Broadcast la liste des utilisateurs à tous les clients connectés
@@ -48,9 +63,18 @@ wss.on('connection', (ws) => {
   connectedUsers.set(clientId, {
     ws,
     name: null,
+    email: null,
+    prenom: null,
+    nom: null,
+    classe: null,
     lat: null,
     lng: null,
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    isSearching: false,
+    searchType: null, // 'debat', 'chat', 'cours'
+    searchLanguage: null,
+    searchMatiere: null,
+    searchNiveau: null
   });
 
   // Envoyer l'ID au client
@@ -75,6 +99,10 @@ wss.on('connection', (ws) => {
             user.lat = message.lat;
             user.lng = message.lng;
             user.name = message.name || `Utilisateur ${clientId.slice(-4)}`;
+            user.email = message.email || null;
+            user.prenom = message.prenom || null;
+            user.nom = message.nom || null;
+            user.classe = message.classe || null;
             user.timestamp = Date.now();
 
             console.log(`📍 Position mise à jour: ${user.name} (${user.lat}, ${user.lng})`);
@@ -87,6 +115,26 @@ wss.on('connection', (ws) => {
               message: 'Latitude et longitude invalides'
             }));
           }
+          break;
+
+        case 'startSearch':
+          // Utilisateur démarre une recherche
+          handleStartSearch(clientId, message);
+          break;
+
+        case 'stopSearch':
+          // Utilisateur arrête sa recherche
+          handleStopSearch(clientId);
+          break;
+
+        case 'teacherAvailable':
+          // Professeur se rend disponible pour une matière
+          handleTeacherAvailable(clientId, message);
+          break;
+
+        case 'teacherUnavailable':
+          // Professeur se rend indisponible pour une matière
+          handleTeacherUnavailable(clientId, message);
           break;
 
         case 'requestUserList':
@@ -126,6 +174,16 @@ wss.on('connection', (ws) => {
     const user = connectedUsers.get(clientId);
     const userName = user?.name || clientId;
     
+    // Retirer de la file d'attente si en recherche
+    if (user?.isSearching) {
+      removeFromQueue(clientId, user);
+    }
+    
+    // Retirer des listes de professeurs disponibles si professeur
+    if (user?.isTeacher) {
+      removeTeacherFromAllSubjects(clientId);
+    }
+    
     // Supprimer l'utilisateur de la liste
     connectedUsers.delete(clientId);
     
@@ -141,6 +199,450 @@ wss.on('connection', (ws) => {
     console.error(`⚠️ Erreur WebSocket pour ${clientId}:`, error);
   });
 });
+
+// ===== SYSTÈME DE MATCHING =====
+
+/**
+ * Ajoute un utilisateur dans la file d'attente de matching
+ */
+function handleStartSearch(clientId, message) {
+  const user = connectedUsers.get(clientId);
+  if (!user) {
+    console.error('❌ Utilisateur non trouvé:', clientId);
+    return;
+  }
+
+  const { searchType, language, matiere, niveau, email, prenom, nom, classe } = message;
+  
+  // Valider les paramètres
+  if (!searchType) {
+    user.ws.send(JSON.stringify({
+      type: 'error',
+      message: 'Paramètres de recherche manquants'
+    }));
+    return;
+  }
+
+  // Mettre à jour les informations de l'utilisateur
+  user.isSearching = true;
+  user.searchType = searchType;
+  user.searchLanguage = language;
+  user.searchMatiere = matiere || null;
+  user.searchNiveau = niveau || null;
+  user.email = email || user.email;
+  user.prenom = prenom || user.prenom;
+  user.nom = nom || user.nom;
+  user.classe = classe || user.classe;
+  user.name = `${prenom || ''} ${nom || ''}`.trim() || user.name;
+
+  // Si c'est une recherche de cours, chercher un professeur disponible
+  if (searchType === 'cours' && matiere) {
+    console.log(`🔍 ${user.name} recherche un cours de ${matiere} (${niveau})`);
+    handleStudentSearchingTeacher(clientId, user);
+    return;
+  }
+
+  console.log(`🔍 ${user.name} recherche un ${searchType} en ${language}`);
+
+  // Créer la clé de la file d'attente
+  const queueKey = `${searchType}:${language}`;
+  
+  // Initialiser la file si elle n'existe pas
+  if (!matchingQueues.has(queueKey)) {
+    matchingQueues.set(queueKey, []);
+  }
+
+  const queue = matchingQueues.get(queueKey);
+  
+  // Vérifier s'il y a quelqu'un en attente dans cette file
+  if (queue.length > 0) {
+    // Matcher avec le premier utilisateur en attente
+    const matchedClientId = queue.shift();
+    const matchedUser = connectedUsers.get(matchedClientId);
+    
+    if (matchedUser && matchedUser.ws.readyState === WebSocket.OPEN) {
+      // Créer une room Google Meet
+      const meetId = generateMeetId();
+      const meetLink = `https://meet.google.com/${meetId}`;
+      
+      console.log(`✅ Match trouvé ! ${user.name} ↔️ ${matchedUser.name}`);
+      console.log(`📹 Google Meet créé: ${meetLink}`);
+      
+      // Envoyer le match aux deux utilisateurs
+      const matchData = {
+        type: 'matchFound',
+        meetLink: meetLink,
+        meetId: meetId,
+        partner: {
+          name: matchedUser.name,
+          prenom: matchedUser.prenom,
+          nom: matchedUser.nom,
+          classe: matchedUser.classe,
+          email: matchedUser.email
+        }
+      };
+      
+      const matchDataForMatched = {
+        type: 'matchFound',
+        meetLink: meetLink,
+        meetId: meetId,
+        partner: {
+          name: user.name,
+          prenom: user.prenom,
+          nom: user.nom,
+          classe: user.classe,
+          email: user.email
+        }
+      };
+      
+      // Envoyer aux deux utilisateurs avec vérification de l'état de connexion
+      if (user.ws.readyState === WebSocket.OPEN) {
+        user.ws.send(JSON.stringify(matchData));
+      } else {
+        console.warn(`⚠️ Impossible d'envoyer le match à ${user.name} (connexion fermée)`);
+      }
+      
+      if (matchedUser.ws.readyState === WebSocket.OPEN) {
+        matchedUser.ws.send(JSON.stringify(matchDataForMatched));
+      } else {
+        console.warn(`⚠️ Impossible d'envoyer le match à ${matchedUser.name} (connexion fermée)`);
+      }
+      
+      // Marquer comme non plus en recherche
+      user.isSearching = false;
+      matchedUser.isSearching = false;
+      
+      // Nettoyer les données de recherche
+      user.searchType = null;
+      user.searchLanguage = null;
+      matchedUser.searchType = null;
+      matchedUser.searchLanguage = null;
+    } else {
+      // L'utilisateur matché n'est plus disponible, ajouter à la file
+      addToQueue(clientId, queueKey);
+    }
+  } else {
+    // Personne en attente, ajouter à la file
+    addToQueue(clientId, queueKey);
+  }
+  
+  // Envoyer la mise à jour de la file d'attente
+  broadcastQueueStatus(queueKey);
+}
+
+/**
+ * Ajoute un utilisateur à la file d'attente
+ */
+function addToQueue(clientId, queueKey) {
+  const queue = matchingQueues.get(queueKey);
+  if (!queue.includes(clientId)) {
+    queue.push(clientId);
+    console.log(`➕ ${clientId} ajouté à la file ${queueKey} (${queue.length} en attente)`);
+    
+    const user = connectedUsers.get(clientId);
+    if (user) {
+      user.ws.send(JSON.stringify({
+        type: 'searching',
+        message: 'Recherche en cours...',
+        queuePosition: queue.length,
+        queueKey: queueKey
+      }));
+    }
+  }
+}
+
+/**
+ * Retire un utilisateur de la file d'attente
+ */
+function handleStopSearch(clientId) {
+  const user = connectedUsers.get(clientId);
+  if (!user || !user.isSearching) return;
+  
+  removeFromQueue(clientId, user);
+  
+  user.isSearching = false;
+  user.searchType = null;
+  user.searchLanguage = null;
+  user.searchMatiere = null;
+  user.searchNiveau = null;
+  
+  user.ws.send(JSON.stringify({
+    type: 'searchStopped',
+    message: 'Recherche arrêtée'
+  }));
+  
+  console.log(`🛑 ${user.name} a arrêté sa recherche`);
+}
+
+/**
+ * Retire un utilisateur de sa file d'attente
+ */
+function removeFromQueue(clientId, user) {
+  if (!user.searchType || !user.searchLanguage) return;
+  
+  const queueKey = `${user.searchType}:${user.searchLanguage}`;
+  const queue = matchingQueues.get(queueKey);
+  
+  if (queue) {
+    const index = queue.indexOf(clientId);
+    if (index > -1) {
+      queue.splice(index, 1);
+      console.log(`➖ ${clientId} retiré de la file ${queueKey} (${queue.length} restants)`);
+      broadcastQueueStatus(queueKey);
+    }
+  }
+}
+
+/**
+ * Envoie le statut de la file d'attente à tous les utilisateurs concernés
+ */
+function broadcastQueueStatus(queueKey) {
+  const queue = matchingQueues.get(queueKey);
+  if (!queue) return;
+  
+  queue.forEach((clientId, index) => {
+    const user = connectedUsers.get(clientId);
+    if (user && user.ws.readyState === WebSocket.OPEN) {
+      user.ws.send(JSON.stringify({
+        type: 'queueUpdate',
+        queuePosition: index + 1,
+        queueSize: queue.length,
+        message: `${queue.length} utilisateur(s) en attente dans cette file`
+      }));
+    }
+  });
+}
+
+/**
+ * Retire un professeur de toutes les matières où il était disponible
+ */
+function removeTeacherFromAllSubjects(teacherClientId) {
+  availableTeachers.forEach((teacherList, matiere) => {
+    const index = teacherList.indexOf(teacherClientId);
+    if (index > -1) {
+      teacherList.splice(index, 1);
+      console.log(`🗑️ Professeur retiré de ${matiere} (déconnexion)`);
+    }
+  });
+}
+
+// ===== SYSTÈME DE MATCHING PROFESSEUR-ÉLÈVE =====
+
+/**
+ * Professeur se rend disponible pour une matière
+ */
+function handleTeacherAvailable(clientId, message) {
+  const teacher = connectedUsers.get(clientId);
+  if (!teacher) return;
+
+  const { matiere, email, prenom, nom } = message;
+  
+  if (!matiere) {
+    teacher.ws.send(JSON.stringify({
+      type: 'error',
+      message: 'Matière manquante'
+    }));
+    return;
+  }
+
+  // Mettre à jour les infos du professeur
+  teacher.isTeacher = true;
+  teacher.email = email || teacher.email;
+  teacher.prenom = prenom || teacher.prenom;
+  teacher.nom = nom || teacher.nom;
+  teacher.name = `${prenom || ''} ${nom || ''}`.trim() || teacher.name;
+
+  // Initialiser la liste des professeurs pour cette matière
+  if (!availableTeachers.has(matiere)) {
+    availableTeachers.set(matiere, []);
+  }
+
+  const teacherList = availableTeachers.get(matiere);
+  
+  // Ajouter le professeur s'il n'est pas déjà dans la liste
+  if (!teacherList.includes(clientId)) {
+    teacherList.push(clientId);
+    console.log(`👨‍🏫 ${teacher.name} est maintenant disponible pour ${matiere} (${teacherList.length} prof(s) disponibles)`);
+    
+    teacher.ws.send(JSON.stringify({
+      type: 'teacherAvailableConfirmed',
+      matiere: matiere,
+      message: `Vous êtes maintenant disponible pour ${matiere}`
+    }));
+
+    // Vérifier s'il y a des élèves en attente pour cette matière
+    checkForWaitingStudents(matiere);
+  }
+}
+
+/**
+ * Professeur se rend indisponible pour une matière
+ */
+function handleTeacherUnavailable(clientId, message) {
+  const teacher = connectedUsers.get(clientId);
+  if (!teacher) return;
+
+  const { matiere } = message;
+  
+  if (!matiere) return;
+
+  const teacherList = availableTeachers.get(matiere);
+  if (teacherList) {
+    const index = teacherList.indexOf(clientId);
+    if (index > -1) {
+      teacherList.splice(index, 1);
+      console.log(`👨‍🏫 ${teacher.name} n'est plus disponible pour ${matiere} (${teacherList.length} prof(s) restants)`);
+      
+      teacher.ws.send(JSON.stringify({
+        type: 'teacherUnavailableConfirmed',
+        matiere: matiere,
+        message: `Vous n'êtes plus disponible pour ${matiere}`
+      }));
+    }
+  }
+}
+
+/**
+ * Élève recherche un professeur pour une matière
+ */
+function handleStudentSearchingTeacher(clientId, student) {
+  const matiere = student.searchMatiere;
+  
+  if (!matiere) {
+    student.ws.send(JSON.stringify({
+      type: 'error',
+      message: 'Matière non spécifiée'
+    }));
+    return;
+  }
+
+  // Chercher un professeur disponible pour cette matière
+  const teacherList = availableTeachers.get(matiere);
+  
+  if (teacherList && teacherList.length > 0) {
+    // Prendre le premier professeur disponible
+    const teacherClientId = teacherList.shift();
+    const teacher = connectedUsers.get(teacherClientId);
+    
+    if (teacher && teacher.ws.readyState === WebSocket.OPEN) {
+      // Match trouvé !
+      createTeacherStudentMatch(teacher, teacherClientId, student, clientId);
+    } else {
+      // Le professeur n'est plus connecté, réessayer avec le suivant
+      if (teacherList.length > 0) {
+        handleStudentSearchingTeacher(clientId, student);
+      } else {
+        // Aucun professeur disponible, mettre l'élève en attente
+        addStudentToWaitingQueue(clientId, student);
+      }
+    }
+  } else {
+    // Aucun professeur disponible, mettre l'élève en attente
+    addStudentToWaitingQueue(clientId, student);
+  }
+}
+
+/**
+ * Ajoute un élève à la file d'attente pour une matière
+ */
+function addStudentToWaitingQueue(clientId, student) {
+  const matiere = student.searchMatiere;
+  const queueKey = `cours:${matiere}`;
+  
+  if (!matchingQueues.has(queueKey)) {
+    matchingQueues.set(queueKey, []);
+  }
+
+  const queue = matchingQueues.get(queueKey);
+  if (!queue.includes(clientId)) {
+    queue.push(clientId);
+    console.log(`⏳ ${student.name} en attente d'un professeur de ${matiere} (${queue.length} élève(s) en attente)`);
+    
+    student.ws.send(JSON.stringify({
+      type: 'searching',
+      message: 'Recherche d\'un professeur disponible...',
+      queuePosition: queue.length,
+      queueKey: queueKey
+    }));
+  }
+}
+
+/**
+ * Vérifie s'il y a des élèves en attente pour une matière
+ */
+function checkForWaitingStudents(matiere) {
+  const queueKey = `cours:${matiere}`;
+  const queue = matchingQueues.get(queueKey);
+  
+  if (queue && queue.length > 0) {
+    const studentClientId = queue.shift();
+    const student = connectedUsers.get(studentClientId);
+    
+    if (student && student.ws.readyState === WebSocket.OPEN) {
+      // Relancer la recherche pour cet élève
+      handleStudentSearchingTeacher(studentClientId, student);
+    } else {
+      // L'élève n'est plus connecté, vérifier le suivant
+      if (queue.length > 0) {
+        checkForWaitingStudents(matiere);
+      }
+    }
+  }
+}
+
+/**
+ * Crée un match entre un professeur et un élève
+ */
+function createTeacherStudentMatch(teacher, teacherClientId, student, studentClientId) {
+  const meetId = generateMeetId();
+  const meetLink = `https://meet.google.com/${meetId}`;
+  
+  console.log(`✅ Match trouvé ! Élève: ${student.name} ↔️ Prof: ${teacher.name} (${student.searchMatiere})`);
+  console.log(`📹 Google Meet créé: ${meetLink}`);
+  
+  // Données pour l'élève
+  const studentMatchData = {
+    type: 'matchFound',
+    meetLink: meetLink,
+    meetId: meetId,
+    partner: {
+      name: teacher.name,
+      prenom: teacher.prenom,
+      nom: teacher.nom,
+      email: teacher.email,
+      isTeacher: true
+    },
+    matiere: student.searchMatiere,
+    niveau: student.searchNiveau
+  };
+  
+  // Données pour le professeur
+  const teacherMatchData = {
+    type: 'matchFound',
+    meetLink: meetLink,
+    meetId: meetId,
+    partner: {
+      name: student.name,
+      prenom: student.prenom,
+      nom: student.nom,
+      classe: student.classe,
+      email: student.email,
+      isTeacher: false
+    },
+    matiere: student.searchMatiere,
+    niveau: student.searchNiveau
+  };
+  
+  // Envoyer aux deux parties
+  student.ws.send(JSON.stringify(studentMatchData));
+  teacher.ws.send(JSON.stringify(teacherMatchData));
+  
+  // Marquer comme non plus en recherche
+  student.isSearching = false;
+  student.searchType = null;
+  student.searchMatiere = null;
+  student.searchNiveau = null;
+}
 
 // Nettoyage périodique des connexions inactives (toutes les 30 secondes)
 setInterval(() => {
