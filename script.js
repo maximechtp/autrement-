@@ -161,8 +161,9 @@ function incrementUsage(email, type) {
 }
 
 function checkUsageLimit(email, type) {
-  // Compte admin : accès illimité automatique
-  if (email?.toLowerCase() === 'maxime.chantepiee@gmail.com') {
+  // Comptes admin : accès illimité automatique
+  const adminEmails = ['maxime.chantepiee@gmail.com', 'jan.smid14@gmail.com'];
+  if (email && adminEmails.includes(email.toLowerCase())) {
     return { allowed: true, remaining: Infinity, current: 0, limit: Infinity };
   }
   
