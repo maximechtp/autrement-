@@ -2323,12 +2323,6 @@ function loadGoogleReviews() {
   // Nécessite une clé API Google et un Place ID
   console.log('Google Reviews : À implémenter');
 }
-      <div class="review-date">${review.date}</div>
-    `;
-    
-    reviewsTrack.appendChild(reviewCard);
-  });
-}
 
 function generateMeetId() {
   // Générer un ID au format Google Meet valide: xxx-yyyy-zzz
