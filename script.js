@@ -432,7 +432,7 @@ function updateUserAvatar() {
         avatar.style.borderColor = '#ef4444'; // Red for not subscribed
         avatar.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.4)';
       }
-      const subscriptionStatus = sessionData.isSubscribed ? '✓ Abonné' : '✗ Non abonné';
+      const subscriptionStatus = sessionData.isSubscribed ? 'Abonné' : 'Non abonné';
       avatar.title = `${sessionData.prenom} ${sessionData.nom}\n${subscriptionStatus}`;
     }
     
@@ -475,7 +475,7 @@ function showUserProfile() {
   
   // Set subscription status
   profileStatus.className = 'profile-status ' + (sessionData.isSubscribed ? 'subscribed' : 'not-subscribed');
-  profileStatus.textContent = sessionData.isSubscribed ? '✓ Abonné' : '✗ Non abonné';
+  profileStatus.textContent = sessionData.isSubscribed ? 'Abonné' : 'Non abonné';
   
   // Update plan buttons based on current subscription
   updatePlanButtons();
@@ -2294,7 +2294,7 @@ function showGoogleReviewPrompt() {
   notification.className = 'google-review-notification';
   notification.innerHTML = `
     <div style="position: fixed; bottom: 20px; right: 20px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); z-index: 10000; max-width: 350px; animation: slideIn 0.3s ease-out;">
-      <button onclick="this.parentElement.parentElement.remove()" style="position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 20px; cursor: pointer; color: #999;">×</button>
+      <button onclick="this.parentElement.parentElement.remove()" style="position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 20px; cursor: pointer; color: #999;">X</button>
       <p style="margin: 0 0 15px 0; font-size: 16px; font-weight: 500; color: #333;">✨ Session terminée !</p>
       <p style="margin: 0 0 15px 0; font-size: 14px; color: #666;">Vous avez apprécié LOK IN ? Votre avis compte beaucoup pour nous !</p>
       <a href="https://g.page/r/CSuSLlcLU4I-EAE/review" target="_blank" 
@@ -3227,7 +3227,7 @@ function loadCourseRequests() {
         <p class="timer-text">⏰ Temps restant: <span class="timer-countdown" data-request-id="${request.id}">${timeRemaining}s</span></p>
       </div>
       <div class="demande-actions">
-        <button class="btn-accepter" onclick="acceptCourseRequest('${request.id}')">✓ Accepter</button>
+        <button class="btn-accepter" onclick="acceptCourseRequest('${request.id}')">Accepter</button>
         <button class="btn-refuser" onclick="refuseCourseRequest('${request.id}')">✗ Refuser</button>
       </div>
     `;
