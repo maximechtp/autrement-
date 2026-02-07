@@ -182,17 +182,17 @@ wss.on('connection', (ws) => {
           break;
 
         default:
-          ws.send(JSON.stringify({
-            type: 'error',
-            message: 'Type de message non reconnu'
-          }));
+          console.log('⚠️ Type de message non reconnu:', message.type, 'de', clientId);
+          // Ne pas envoyer d'erreur au client pour ne pas le bloquer
+          // ws.send(JSON.stringify({
+          //   type: 'error',
+          //   message: 'Type de message non reconnu'
+          // }));
       }
     } catch (error) {
       console.error('❌ Erreur lors du traitement du message:', error);
-      ws.send(JSON.stringify({
-        type: 'error',
-        message: 'Erreur de traitement du message'
-      }));
+      // Ne pas bloquer le client avec une erreur
+      console.error('Message problématique:', messageData);
     }
   });
 

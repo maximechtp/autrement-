@@ -3104,7 +3104,13 @@ function connectWebSocket() {
 
           case 'error':
             console.error('❌ Erreur serveur:', data.message);
-            alert(`❌ Erreur: ${data.message}`);
+            // Ne pas afficher d'alert pour ne pas bloquer l'utilisateur
+            console.warn('Erreur reçue du serveur:', data.message);
+            break;
+          
+          default:
+            // Message de type inconnu - juste logger sans bloquer
+            console.log('📨 Message WebSocket non géré:', data.type, data);
             break;
         }
       } catch (error) {
