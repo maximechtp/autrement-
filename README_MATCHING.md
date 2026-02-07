@@ -9,8 +9,8 @@ Le système de simulation a été **complètement remplacé** par un **système 
 ### 🎯 Matching par langue et type d'activité
 
 Les utilisateurs qui recherchent :
-- **Débats** dans une langue spécifique
-- **Lucky Chat** dans une langue spécifique  
+- **Clashs** dans une langue spécifique
+- **JustSpeak** dans une langue spécifique  
 - **Cours** dans une langue spécifique
 
 Sont maintenant **automatiquement mis en relation** avec d'autres utilisateurs qui recherchent la même activité dans la même langue.
@@ -94,7 +94,7 @@ Les messages affichés évoluent selon l'état :
 ### Pour les élèves
 
 1. **Se connecter** avec Google ou créer un compte
-2. **Choisir une activité** : Débat, Lucky Chat, ou Cours
+2. **Choisir une activité** : Clash, JustSpeak, ou Cours
 3. **Sélectionner une langue**
 4. **Lancer la recherche** → Vous entrez dans la file d'attente
 5. **Attendre un match** → Dès qu'un utilisateur correspondant est trouvé, vous êtes notifié
@@ -155,8 +155,8 @@ Le client affiche des logs dans la console :
 
 ### Simulation vs Réel
 
-- ✅ **Débats** : Système de matching réel activé
-- ✅ **Lucky Chat** : Système de matching réel activé
+- ✅ **Clashs** : Système de matching réel activé
+- ✅ **JustSpeak** : Système de matching réel activé
 - ⚠️ **Cours avec professeurs** : Toujours en mode simulation (à implémenter)
 
 ### Google Meet

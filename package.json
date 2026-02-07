@@ -16,7 +16,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "ws": "^8.19.0"
+    "ws": "^8.19.0",
+    "stripe": "^14.14.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.3"

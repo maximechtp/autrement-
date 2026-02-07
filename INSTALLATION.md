@@ -97,7 +97,7 @@ Pour tester le système de matching en temps réel :
 
 1. **Ouvrez 2 fenêtres de navigateur** (ou 2 navigateurs différents)
 2. Dans chaque fenêtre, connectez-vous avec un compte différent
-3. Dans les deux, sélectionnez **Débat** et la **même langue** (ex: Français)
+3. Dans les deux, sélectionnez **Clash** et la **même langue** (ex: Français)
 4. Lancez la recherche dans les deux fenêtres
 5. Vous devriez voir un **match se créer automatiquement** !
 
@@ -155,7 +155,7 @@ const PORT = process.env.PORT || 8081;
 **Problèmes possibles** :
 1. Un seul utilisateur en recherche → Ouvrez une 2ème fenêtre
 2. Langues différentes → Vérifiez que les deux utilisent la même langue
-3. Types d'activité différents → Vérifiez que les deux cherchent la même chose (débat, chat, etc.)
+3. Types d'activité différents → Vérifiez que les deux cherchent la même chose (clash, chat, etc.)
 
 ### Le serveur se déconnecte souvent
 

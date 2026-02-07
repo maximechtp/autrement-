@@ -103,8 +103,8 @@ Pas de panique ! Voici comment réinitialiser votre mot de passe :
 
 ### Pour les élèves :
 Après connexion, vous accédez à :
-- 💬 Lucky Chat : Chat avec une IA
-- 🗣️ Débats : Discuter de sujets variés
+- 💬 JustSpeak : Chat avec une IA
+- 🗣️ Clashs : Discuter de sujets variés
 - 📚 Cours : Réserver des cours en vidéo
 
 ### Pour les professeurs :

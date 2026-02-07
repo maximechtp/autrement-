@@ -223,8 +223,8 @@
             </div>
           </div>
           <ul class="plan-features">
-            <li>✓ 3 sessions Lucky Chat</li>
-            <li>✓ 3 débats</li>
+            <li>✓ 3 sessions JustSpeak</li>
+            <li>✓ 3 clashs</li>
             <li>✗ 0 cours</li>
             <li>✗ Priorité de connexion</li>
             <li>✗ Support prioritaire</li>
@@ -242,8 +242,8 @@
             </div>
           </div>
           <ul class="plan-features">
-            <li>✓ Lucky Chat illimité</li>
-            <li>✓ Débats illimités</li>
+            <li>✓ JustSpeak illimité</li>
+            <li>✓ Clashs illimités</li>
             <li>✓ Priorité de connexion</li>
             <li>✗ Accès aux cours</li>
             <li>✗ Support prioritaire</li>
@@ -263,8 +263,8 @@
           </div>
           <ul class="plan-features">
             <li>✓ 20 cours inclus</li>
-            <li>✓ Lucky Chat illimité</li>
-            <li>✓ Débats illimités</li>
+            <li>✓ JustSpeak illimité</li>
+            <li>✓ Clashs illimités</li>
             <li>✓ Priorité de connexion</li>
             <li>✓ Support prioritaire 24/7</li>
             <li>✓ Supplément: 25€ pour 4 cours</li>
@@ -309,8 +309,8 @@
 <div id="eleve-options" class="page hidden">
   <h2 id="options-title">Choisissez une option</h2>
   <button data-action="chooseOption" data-param="cours" aria-label="Sélectionner cours de 20 minutes">📚 Cours 20 min</button>
-  <button data-action="chooseOption" data-param="debat" aria-label="Sélectionner débat en direct">🎤 Débat</button>
-  <button data-action="chooseOption" data-param="chat" aria-label="Sélectionner Lucky Chat">💬 Lucky Chat</button>
+  <button data-action="chooseOption" data-param="debat" aria-label="Sélectionner clash en direct">🎤 Clash</button>
+  <button data-action="chooseOption" data-param="chat" aria-label="Sélectionner JustSpeak">💬 JustSpeak</button>
 </div>
 
 <div id="option-confirmation" class="page hidden">
@@ -394,12 +394,12 @@
 </div>
 
 <div id="meet-created" class="page hidden">
-  <h2 id="meet-created-title">Débat Créé</h2>
-  <p id="meet-created-text">Votre débat a été créé! Partagez le lien ci-dessous avec les autres participants.</p>
+  <h2 id="meet-created-title">Clash Créé</h2>
+  <p id="meet-created-text">Votre clash a été créé! Partagez le lien ci-dessous avec les autres participants.</p>
   <p>Lien Google Meet : <a href="#" id="meet-created-link" target="_blank">Ouvrir Meet</a></p>
   <p id="meet-created-id"></p>
   <button data-action="copyMeetLink">Copier le lien</button>
-  <button data-action="startDebate">Commencer le débat</button>
+  <button data-action="startDebate">Commencer le clash</button>
   <button data-action="goTo" data-param="home" class="btn-secondary">Annuler</button>
 </div>
 
@@ -708,6 +708,87 @@
   </div>
 </div>
 
+<!-- Page spéciale pour le Clash avec question de débat -->
+<div id="clash-match" class="page hidden">
+  <div class="call-container">
+    <!-- En-tête avec animation -->
+    <div class="call-header">
+      <div class="call-status-badge">
+        <span class="pulse-dot"></span>
+        <span>Match Clash !</span>
+      </div>
+      <h2>Clash trouvé</h2>
+    </div>
+
+    <!-- Profil du partenaire -->
+    <div class="partner-profile-card">
+      <div class="partner-avatar">
+        <div class="avatar-circle" id="clash-avatar-initial">
+          ??
+        </div>
+        <div class="online-indicator"></div>
+      </div>
+      
+      <div class="partner-info">
+        <h3 id="clash-partner-name" class="partner-name">Chargement...</h3>
+        <p id="clash-partner-class" class="partner-class">Classe...</p>
+        
+        <div class="partner-stats">
+          <div class="stat-item">
+            <span class="stat-icon">🔥</span>
+            <div class="stat-content">
+              <span class="stat-number" id="clash-calls-count">0</span>
+              <span class="stat-label">Clashs effectués</span>
+            </div>
+          </div>
+          <div class="stat-item">
+            <span class="stat-icon">⭐</span>
+            <div class="stat-content">
+              <span class="stat-number" id="clash-rating">0.0</span>
+              <span class="stat-label">Note moyenne</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="partner-activity-info">
+          <p>🎯 Activité: <strong>Clash</strong></p>
+          <p id="clash-language">🌍 Langue: <strong id="clash-language-type">...</strong></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Question de débat générée -->
+    <div class="clash-debate-question">
+      <h3>📝 Question de débat</h3>
+      <div class="debate-question-box">
+        <p id="clash-debate-question">Chargement de la question...</p>
+      </div>
+    </div>
+
+    <!-- Boutons accepter/refuser avec design moderne -->
+    <div class="connection-actions">
+      <button data-action="acceptClashMatch" class="btn-accept">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Accepter le Clash
+      </button>
+      <button data-action="refuseClashMatch" class="btn-refuse">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Refuser
+      </button>
+    </div>
+
+    <!-- Message d'attente d'acceptation -->
+    <div id="clash-waiting-acceptance" class="waiting-message hidden">
+      <div class="spinner"></div>
+      <p>En attente de l'acceptation de votre partenaire...</p>
+    </div>
+  </div>
+</div>
+
 <div id="call" class="page hidden">
   <div class="call-container">
     <!-- En-tête avec animation -->
@@ -796,6 +877,11 @@
     <h3 class="reviews-title">Ce que disent nos utilisateurs</h3>
     <div class="reviews-track" id="reviews-track">
       <!-- Les avis seront ajoutés dynamiquement -->
+    </div>
+    <div style="text-align: center; margin-top: 30px;">
+      <a href="https://g.page/r/CSuSLlcLU4I-EAE/review" target="_blank" class="google-review-btn">
+        ⭐ Laisser un avis Google
+      </a>
     </div>
   </div>
 </div>
@@ -903,7 +989,7 @@
           <input type="checkbox" id="new-enable-location" checked>
           <span>📍 Partager ma localisation approximative (à ~100km près)</span>
         </label>
-        <p class="help-text">Cela permettra d'afficher votre position sur la carte pour faciliter les recherches de débats et professeurs à proximité. Votre adresse exacte ne sera jamais partagée.</p>
+        <p class="help-text">Cela permettra d'afficher votre position sur la carte pour faciliter les recherches de clashs et professeurs à proximité. Votre adresse exacte ne sera jamais partagée.</p>
       </div>
       
       <button type="submit" class="btn-primary" id="btn-create-account-submit">Créer mon compte</button>

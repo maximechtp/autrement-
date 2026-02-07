@@ -23,6 +23,10 @@ const matchingQueues = new Map();
 // Structure: { 'Mathématiques': [clientId1, clientId2, ...], 'Français': [...], ... }
 const availableTeachers = new Map();
 
+// Acceptations de Clash en attente (pour acceptation mutuelle)
+// Structure: { matchId: { user1: clientId1, user2: clientId2, user1Accepted: false, user2Accepted: false, debateQuestion: string, meetLink: string } }
+const clashAcceptances = new Map();
+
 // Génère un ID unique pour chaque client
 function generateClientId() {
   return `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -148,6 +152,16 @@ wss.on('connection', (ws) => {
         case 'teacherUnavailable':
           // Professeur se rend indisponible pour une matière
           handleTeacherUnavailable(clientId, message);
+          break;
+
+        case 'clashAccepted':
+          // Utilisateur accepte le Clash
+          handleClashAccepted(clientId, message);
+          break;
+
+        case 'clashRefused':
+          // Utilisateur refuse le Clash
+          handleClashRefused(clientId, message);
           break;
 
         case 'requestUserList':
@@ -278,14 +292,34 @@ function handleStartSearch(clientId, message) {
       const meetId = generateMeetId();
       const meetLink = `https://lokin.online/jitsi-room.html?room=${meetId}`;
       
+      // Générer un matchId unique pour gérer les acceptations
+      const matchIdUnique = `match_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
       console.log(`✅ Match trouvé ! ${user.name} ↔️ ${matchedUser.name}`);
       console.log(`📹 Google Meet créé: ${meetLink}`);
+      
+      // Si c'est un Clash (debat), initialiser le système d'acceptation mutuelle
+      if (searchType === 'debat') {
+        clashAcceptances.set(matchIdUnique, {
+          user1: clientId,
+          user2: matchedClientId,
+          user1Accepted: false,
+          user2Accepted: false,
+          debateQuestion: null,
+          meetLink: meetLink,
+          meetId: meetId,
+          timestamp: Date.now()
+        });
+        
+        console.log(`🔥 Clash initialisé avec matchId: ${matchIdUnique}`);
+      }
       
       // Envoyer le match aux deux utilisateurs
       const matchData = {
         type: 'matchFound',
         meetLink: meetLink,
         meetId: meetId,
+        matchId: matchIdUnique,
         partner: {
           name: matchedUser.name,
           prenom: matchedUser.prenom,
@@ -299,6 +333,7 @@ function handleStartSearch(clientId, message) {
         type: 'matchFound',
         meetLink: meetLink,
         meetId: meetId,
+        matchId: matchIdUnique,
         partner: {
           name: user.name,
           prenom: user.prenom,
@@ -321,9 +356,11 @@ function handleStartSearch(clientId, message) {
         console.warn(`⚠️ Impossible d'envoyer le match à ${matchedUser.name} (connexion fermée)`);
       }
       
-      // Marquer comme non plus en recherche
-      user.isSearching = false;
-      matchedUser.isSearching = false;
+      // Marquer comme non plus en recherche (sauf pour les Clash où on attend l'acceptation)
+      if (searchType !== 'debat') {
+        user.isSearching = false;
+        matchedUser.isSearching = false;
+      }
       
       // Nettoyer les données de recherche
       user.searchType = null;
@@ -655,6 +692,151 @@ function createTeacherStudentMatch(teacher, teacherClientId, student, studentCli
   student.searchType = null;
   student.searchMatiere = null;
   student.searchNiveau = null;
+}
+
+// ===== GESTION DES ACCEPTATIONS CLASH =====
+
+/**
+ * Gère l'acceptation d'un Clash par un utilisateur
+ */
+function handleClashAccepted(clientId, message) {
+  const user = connectedUsers.get(clientId);
+  if (!user) {
+    console.error('❌ Utilisateur non trouvé:', clientId);
+    return;
+  }
+
+  const { matchId, debateQuestion } = message;
+  const clashData = clashAcceptances.get(matchId);
+  
+  if (!clashData) {
+    console.error('❌ Match Clash non trouvé:', matchId);
+    user.ws.send(JSON.stringify({
+      type: 'error',
+      message: 'Match non trouvé'
+    }));
+    return;
+  }
+
+  // Déterminer quel utilisateur a accepté
+  let isUser1 = clashData.user1 === clientId;
+  let isUser2 = clashData.user2 === clientId;
+  
+  if (!isUser1 && !isUser2) {
+    console.error('❌ Utilisateur non impliqué dans ce match:', clientId);
+    return;
+  }
+
+  // Marquer l'acceptation
+  if (isUser1) {
+    clashData.user1Accepted = true;
+    console.log(`✅ User1 (${user.name}) a accepté le Clash`);
+  } else {
+    clashData.user2Accepted = true;
+    console.log(`✅ User2 (${user.name}) a accepté le Clash`);
+  }
+  
+  // Stocker la question de débat (la première reçue)
+  if (!clashData.debateQuestion && debateQuestion) {
+    clashData.debateQuestion = debateQuestion;
+  }
+
+  // Vérifier si les deux ont accepté
+  if (clashData.user1Accepted && clashData.user2Accepted) {
+    console.log('🎉 Les deux utilisateurs ont accepté le Clash !');
+    
+    // Récupérer les deux utilisateurs
+    const user1 = connectedUsers.get(clashData.user1);
+    const user2 = connectedUsers.get(clashData.user2);
+    
+    if (user1 && user2) {
+      // Envoyer la confirmation aux deux utilisateurs
+      const confirmationMessage = {
+        type: 'clashBothAccepted',
+        meetLink: clashData.meetLink,
+        meetId: clashData.meetId,
+        debateQuestion: clashData.debateQuestion
+      };
+      
+      if (user1.ws.readyState === WebSocket.OPEN) {
+        user1.ws.send(JSON.stringify(confirmationMessage));
+      }
+      
+      if (user2.ws.readyState === WebSocket.OPEN) {
+        user2.ws.send(JSON.stringify(confirmationMessage));
+      }
+      
+      // Marquer comme non plus en recherche
+      user1.isSearching = false;
+      user2.isSearching = false;
+      
+      // Nettoyer les données de recherche
+      user1.searchType = null;
+      user1.searchLanguage = null;
+      user2.searchType = null;
+      user2.searchLanguage = null;
+      
+      // Supprimer de la Map après 1 minute (pour éviter les fuites mémoire)
+      setTimeout(() => {
+        clashAcceptances.delete(matchId);
+        console.log(`🧹 Nettoyage du match Clash: ${matchId}`);
+      }, 60000);
+    }
+  } else {
+    console.log(`⏳ En attente de l'acceptation de l'autre utilisateur...`);
+  }
+}
+
+/**
+ * Gère le refus d'un Clash par un utilisateur
+ */
+function handleClashRefused(clientId, message) {
+  const user = connectedUsers.get(clientId);
+  if (!user) {
+    console.error('❌ Utilisateur non trouvé:', clientId);
+    return;
+  }
+
+  const { matchId } = message;
+  const clashData = clashAcceptances.get(matchId);
+  
+  if (!clashData) {
+    console.error('❌ Match Clash non trouvé:', matchId);
+    return;
+  }
+
+  // Déterminer quel utilisateur a refusé et notifier l'autre
+  let otherUserId;
+  if (clashData.user1 === clientId) {
+    otherUserId = clashData.user2;
+    console.log(`❌ User1 (${user.name}) a refusé le Clash`);
+  } else if (clashData.user2 === clientId) {
+    otherUserId = clashData.user1;
+    console.log(`❌ User2 (${user.name}) a refusé le Clash`);
+  } else {
+    console.error('❌ Utilisateur non impliqué dans ce match:', clientId);
+    return;
+  }
+
+  // Notifier l'autre utilisateur
+  const otherUser = connectedUsers.get(otherUserId);
+  if (otherUser && otherUser.ws.readyState === WebSocket.OPEN) {
+    otherUser.ws.send(JSON.stringify({
+      type: 'clashPartnerRefused',
+      message: 'Votre partenaire a refusé le Clash'
+    }));
+    
+    // Remettre l'autre utilisateur en recherche
+    otherUser.isSearching = false;
+  }
+
+  // Supprimer le match de la Map
+  clashAcceptances.delete(matchId);
+  
+  // Remettre l'utilisateur qui a refusé en mode non-recherche
+  user.isSearching = false;
+  user.searchType = null;
+  user.searchLanguage = null;
 }
 
 // Nettoyage périodique des connexions inactives (toutes les 30 secondes)

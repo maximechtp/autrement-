@@ -176,4 +176,4 @@ Vous pourrez :
 - ✅ Matching en temps réel entre utilisateurs
 - ✅ Recherche de professeurs en direct
 - ✅ Notifications instantanées
-- ✅ Chat et débats synchronisés
+- ✅ Chat et clashs synchronisés

@@ -24,6 +24,46 @@ let sessionData = {
 // Stack to track navigation history
 let navigationHistory = [];
 
+// Questions de débat de société pour les Clashs
+const CLASH_DEBATE_QUESTIONS = [
+  "Les réseaux sociaux font-ils plus de mal que de bien aux jeunes ?",
+  "Faut-il interdire les smartphones dans les écoles ?",
+  "L'intelligence artificielle est-elle une menace pour l'humanité ?",
+  "Devrait-on légaliser le cannabis à des fins récréatives ?",
+  "Le nucléaire est-il une solution viable contre le réchauffement climatique ?",
+  "Faut-il rendre le vote obligatoire ?",
+  "Les jeux vidéo rendent-ils violents ?",
+  "L'argent fait-il le bonheur ?",
+  "Faut-il supprimer les notes à l'école ?",
+  "Le télétravail est-il meilleur pour la productivité ?",
+  "Devrait-on réduire la semaine de travail à 4 jours ?",
+  "Les influenceurs ont-ils une responsabilité sociale ?",
+  "Faut-il interdire les voitures en centre-ville ?",
+  "Le sport professionnel est-il trop commercialisé ?",
+  "L'exploration spatiale est-elle une priorité pour l'humanité ?",
+  "Faut-il légaliser l'euthanasie ?",
+  "Les animaux devraient-ils avoir des droits juridiques ?",
+  "Le veganisme est-il la solution pour sauver la planète ?",
+  "Faut-il limiter le temps d'écran des enfants par la loi ?",
+  "La célébrité sur internet est-elle une vraie carrière ?",
+  "L'école prépare-t-elle vraiment à la vie professionnelle ?",
+  "Faut-il interdire la corrida ?",
+  "Le streaming musical tue-t-il l'industrie musicale ?",
+  "Les réseaux sociaux devraient-ils vérifier l'âge de leurs utilisateurs ?",
+  "Faut-il taxer davantage les grandes fortunes ?",
+  "Le patriotisme est-il encore d'actualité ?",
+  "Les parents devraient-ils pouvoir choisir le sexe de leur enfant ?",
+  "Faut-il rendre l'école obligatoire jusqu'à 18 ans ?",
+  "La fast fashion est-elle un fléau écologique ?",
+  "Les cryptomonnaies sont-elles l'avenir de la finance ?"
+];
+
+// Fonction pour obtenir une question de débat aléatoire
+function getRandomDebateQuestion() {
+  const randomIndex = Math.floor(Math.random() * CLASH_DEBATE_QUESTIONS.length);
+  return CLASH_DEBATE_QUESTIONS[randomIndex];
+}
+
 // WebSocket connection
 let ws = null;
 let wsConnected = false;
@@ -109,19 +149,27 @@ function generateUsageHash(email, usageData) {
 function getUsageData(email) {
   try {
     const stored = localStorage.getItem(STORAGE_KEY_USAGE);
-    const storedHash = localStorage.getItem(STORAGE_KEY_HASH);
     
-    if (!stored || !storedHash) {
+    if (!stored) {
       return { chat: 0, debat: 0, cours: 0 };
     }
     
     const allUsageData = JSON.parse(stored);
     const userData = allUsageData[email] || { chat: 0, debat: 0, cours: 0 };
     
-    // Vérifier l'intégrité
+    // Récupérer le hash spécifique à cet utilisateur
+    const storedHashKey = `${STORAGE_KEY_HASH}_${email}`;
+    const storedHash = localStorage.getItem(storedHashKey);
+    
+    // Si pas de hash stocké pour cet utilisateur, retourner les données (nouveau compte)
+    if (!storedHash) {
+      return userData;
+    }
+    
+    // Vérifier l'intégrité pour cet utilisateur spécifique
     const expectedHash = generateUsageHash(email, userData);
     if (storedHash !== expectedHash) {
-      console.warn('Usage data tampering detected. Blocking access.');
+      console.warn(`Usage data tampering detected for ${email}. Blocking access.`);
       return { chat: 999, debat: 999, cours: 999 }; // Bloquer si manipulation
     }
     
@@ -139,14 +187,20 @@ function setUsageData(email, usageData) {
     
     allUsageData[email] = usageData;
     
+    // Stocker les données de tous les utilisateurs
     localStorage.setItem(STORAGE_KEY_USAGE, JSON.stringify(allUsageData));
-    localStorage.setItem(STORAGE_KEY_HASH, generateUsageHash(email, usageData));
+    
+    // Stocker un hash spécifique pour cet utilisateur
+    const hashKey = `${STORAGE_KEY_HASH}_${email}`;
+    localStorage.setItem(hashKey, generateUsageHash(email, usageData));
+    
+    // Stocker le timestamp global
     localStorage.setItem(STORAGE_KEY_TIMESTAMP, Date.now().toString());
     
     // Double stockage dans sessionStorage
     sessionStorage.setItem(STORAGE_KEY_USAGE, JSON.stringify(allUsageData));
     
-    console.log(`Usage data for ${email}:`, usageData);
+    console.log(`✅ Usage data saved for ${email}:`, usageData);
   } catch (error) {
     console.error('Error saving usage data:', error);
   }
@@ -183,8 +237,8 @@ function checkUsageLimit(email, type) {
 
 function showUsageLimitPage(type) {
   const typeNames = {
-    chat: 'Lucky Chat',
-    debat: 'Débats',
+    chat: 'JustSpeak',
+    debat: 'Clashs',
     cours: 'Cours'
   };
   
@@ -1343,7 +1397,7 @@ document.addEventListener("DOMContentLoaded", () => {
           
           // Afficher un message sur les essais restants
           if (usageStatus.remaining <= 1) {
-            const typeNames = { chat: 'Lucky Chat', debat: 'Débat', cours: 'Cours' };
+            const typeNames = { chat: 'JustSpeak', debat: 'Clash', cours: 'Cours' };
             alert(`Attention: Il vous reste ${usageStatus.remaining} essai gratuit pour ${typeNames[activityType]}.`);
           }
         }
@@ -1447,6 +1501,14 @@ document.addEventListener("DOMContentLoaded", () => {
         goTo("search");
         break;
 
+      case "acceptClashMatch":
+        acceptClashMatch();
+        break;
+
+      case "refuseClashMatch":
+        refuseClashMatch();
+        break;
+
       case "copyMeetLink":
         copyToClipboard();
         break;
@@ -1460,6 +1522,11 @@ document.addEventListener("DOMContentLoaded", () => {
         break;
 
       case "submitRating":
+        // Afficher l'invitation Google Review après l'évaluation
+        setTimeout(() => {
+          showGoogleReviewPrompt();
+        }, 500);
+        
         // Rediriger vers la page des abonnements après avoir terminé
         if (sessionData.isLoggedIn) {
           showUserProfile();
@@ -1611,9 +1678,9 @@ function goTo(pageId) {
 function updateLanguageTitle(option) {
   const title = document.getElementById("langue-title");
   if (option === "debat") {
-    title.textContent = "Choisissez une langue pour le débat";
+    title.textContent = "Choisissez une langue pour le clash";
   } else if (option === "chat") {
-    title.textContent = "Choisissez une langue pour le Lucky Chat";
+    title.textContent = "Choisissez une langue pour le JustSpeak";
   }
 }
 
@@ -1622,13 +1689,17 @@ function confirmLanguage() {
   sessionData.langue = languageSelect.value;
   console.log("Language selected:", sessionData.langue);
   
-  // For debate, create and show the Meet immediately
-  if (sessionData.option === "debat") {
-    createDebateMeet();
-  } else if (sessionData.option === "chat") {
-    // For chat, go directly to search without asking for subject
-    sessionData.matiere = "Conversation générale";
+  // Pour le Clash et JustSpeak, aller directement à la recherche en temps réel
+  if (sessionData.option === "debat" || sessionData.option === "chat") {
+    // Définir la matière par défaut
+    if (sessionData.option === "debat") {
+      sessionData.matiere = "Clash";
+    } else {
+      sessionData.matiere = "Conversation générale";
+    }
     sessionData.niveau = "N/A";
+    
+    // Aller à la page de recherche et démarrer le matching
     goTo("search");
     startSearching();
   } else {
@@ -1637,21 +1708,63 @@ function confirmLanguage() {
   }
 }
 
-function createDebateMeet() {
-  // Generate a unique meet ID
-  const meetId = generateMeetId();
-  // Use Jitsi Meet for live video conferencing
-  sessionData.meetLink = `https://meet.jitsi/${meetId}`;
-  sessionData.matiere = "Débat";
-  sessionData.niveau = "N/A";
+function openClashMeetWithQuestion() {
+  // Ouvrir directement Google Meet avec la question de débat
+  console.log('🎯 Ouverture du Clash Meet avec la question');
   
-  // Display the Meet creation page
-  document.getElementById("meet-created-link").href = sessionData.meetLink;
-  document.getElementById("meet-created-id").textContent = `ID de réunion: ${meetId}`;
-  document.getElementById("meet-created-text").textContent = 
-    `Votre débat en ${sessionData.langue} a été créé! Partagez le lien ci-dessous avec les autres participants.`;
+  // Mettre à jour le profil du partenaire dans la page call
+  updatePartnerProfile();
   
-  goTo("meet-created");
+  // Générer les avis utilisateurs
+  generateReviews();
+  
+  // Afficher la question de débat dans l'interface d'appel
+  const callTitle = document.getElementById('call-title');
+  if (callTitle) {
+    callTitle.textContent = 'Clash en cours';
+  }
+  
+  // Créer un élément pour afficher la question dans la page d'appel
+  const callContainer = document.querySelector('#call .call-container');
+  if (callContainer) {
+    // Vérifier si l'élément de question existe déjà
+    let questionElement = document.getElementById('call-debate-question');
+    if (!questionElement) {
+      questionElement = document.createElement('div');
+      questionElement.id = 'call-debate-question';
+      questionElement.className = 'clash-debate-question';
+      questionElement.innerHTML = `
+        <h3>📝 Question de débat</h3>
+        <div class="debate-question-box">
+          <p>${sessionData.debateQuestion}</p>
+        </div>
+      `;
+      // Insérer après le header
+      const header = callContainer.querySelector('.call-header');
+      if (header) {
+        header.after(questionElement);
+      } else {
+        callContainer.insertBefore(questionElement, callContainer.firstChild);
+      }
+    } else {
+      // Mettre à jour la question
+      const questionBox = questionElement.querySelector('.debate-question-box p');
+      if (questionBox) {
+        questionBox.textContent = sessionData.debateQuestion;
+      }
+    }
+  }
+  
+  // Aller à la page d'appel
+  goTo("call");
+  
+  // Ouvrir automatiquement le lien Google Meet dans un nouvel onglet
+  if (sessionData.meetLink) {
+    console.log('🔗 Ouverture automatique du lien Google Meet:', sessionData.meetLink);
+    window.open(sessionData.meetLink, '_blank');
+  } else {
+    console.error('❌ Aucun lien Google Meet disponible');
+  }
 }
 
 function handleSubscription(plan) {
@@ -1775,8 +1888,8 @@ function startSearching() {
     searchTitle.textContent = '🔍 Recherche d\'utilisateurs réels en cours...';
   }
   if (searchText) {
-    const activityType = sessionData.option === 'debat' ? 'Débat' : 
-                         sessionData.option === 'chat' ? 'Lucky Chat' : 'Cours';
+    const activityType = sessionData.option === 'debat' ? 'Clash' : 
+                         sessionData.option === 'chat' ? 'JustSpeak' : 'Cours';
     searchText.textContent = `Recherche d'un partenaire pour ${activityType} en ${sessionData.langue}.\nVous serez mis en relation dès qu'un utilisateur sera disponible.`;
   }
   
@@ -1875,12 +1988,16 @@ function showFoundProfile() {
   // Cette fonction est maintenant appelée quand on reçoit un message 'matchFound' du serveur
   // Elle affiche le profil du partenaire trouvé avec les VRAIES données
   
+  // Si c'est un Clash, afficher la page spéciale avec question de débat
+  if (sessionData.option === "debat") {
+    showClashMatch();
+    return;
+  }
+  
   // Adapter le message selon l'option choisie
   let activityText = "";
   if (sessionData.option === "chat") {
-    activityText = "Lucky Chat";
-  } else if (sessionData.option === "debat") {
-    activityText = "Débat";
+    activityText = "JustSpeak";
   } else if (sessionData.option === "cours") {
     activityText = "Cours";
   }
@@ -1909,6 +2026,145 @@ function showFoundProfile() {
   });
   
   goTo("profile");
+}
+
+function showClashMatch() {
+  // Afficher la page spéciale pour le Clash avec question de débat
+  
+  // VRAIES données du partenaire
+  const partnerName = sessionData.partnerName || 'Utilisateur';
+  const partnerClasse = sessionData.partnerClasse || 'Non spécifiée';
+  const partnerEmail = sessionData.partnerEmail || '';
+  
+  // Mettre à jour le profil avec les vraies données
+  document.getElementById('clash-partner-name').textContent = partnerName;
+  document.getElementById('clash-partner-class').textContent = `Classe: ${partnerClasse}`;
+  
+  // Initiales pour l'avatar
+  const initials = getInitials(partnerName);
+  document.getElementById('clash-avatar-initial').textContent = initials;
+  
+  // Langue
+  document.getElementById('clash-language-type').textContent = sessionData.langue || 'Non spécifiée';
+  
+  // Générer une question de débat aléatoire
+  const debateQuestion = getRandomDebateQuestion();
+  sessionData.debateQuestion = debateQuestion;
+  document.getElementById('clash-debate-question').textContent = debateQuestion;
+  
+  // Récupérer les vraies stats depuis la base de données
+  getRealPartnerStats(partnerEmail).then(stats => {
+    document.getElementById('clash-calls-count').textContent = stats.callsCount;
+    document.getElementById('clash-rating').textContent = stats.rating.toFixed(1);
+  });
+  
+  // Masquer le message d'attente au début
+  document.getElementById('clash-waiting-acceptance').classList.add('hidden');
+  
+  goTo("clash-match");
+}
+
+function acceptClashMatch() {
+  console.log('✅ Acceptation du Clash par l\'utilisateur');
+  
+  // Masquer les boutons et afficher le message d'attente
+  document.querySelector('[data-action="acceptClashMatch"]').style.display = 'none';
+  document.querySelector('[data-action="refuseClashMatch"]').style.display = 'none';
+  document.getElementById('clash-waiting-acceptance').classList.remove('hidden');
+  
+  // Envoyer l'acceptation au serveur via WebSocket
+  if (ws && wsConnected) {
+    ws.send(JSON.stringify({
+      type: 'clashAccepted',
+      matchId: sessionData.matchId,
+      email: sessionData.email,
+      debateQuestion: sessionData.debateQuestion
+    }));
+    
+    console.log('📤 Envoi de l\'acceptation du Clash au serveur');
+  } else {
+    console.error('❌ WebSocket non connecté, impossible d\'envoyer l\'acceptation');
+    alert('Erreur de connexion. Veuillez réessayer.');
+    goTo('eleve-options');
+  }
+}
+
+function refuseClashMatch() {
+  console.log('❌ Refus du Clash par l\'utilisateur');
+  
+  // Envoyer le refus au serveur via WebSocket
+  if (ws && wsConnected) {
+    ws.send(JSON.stringify({
+      type: 'clashRefused',
+      matchId: sessionData.matchId,
+      email: sessionData.email
+    }));
+  }
+  
+  // Retourner à la page de recherche et relancer automatiquement
+  console.log('🔄 Relance automatique de la recherche');
+  goTo('search');
+  
+  // Relancer la recherche après un court délai
+  setTimeout(() => {
+    startSearching();
+  }, 500);
+}
+
+function openClashMeetWithQuestion() {
+  // Ouvrir Google Meet avec la question de débat affichée dans l'interface
+  console.log('🎯 Ouverture du Clash Meet avec la question');
+  
+  // Mettre à jour le profil du partenaire dans la page call
+  updatePartnerProfile();
+  
+  // Générer les avis utilisateurs
+  generateReviews();
+  
+  // Afficher la question de débat dans l'interface d'appel
+  const callTitle = document.getElementById('call-title');
+  if (callTitle) {
+    callTitle.textContent = 'Clash en cours';
+  }
+  
+  // Créer un élément pour afficher la question dans la page d'appel
+  const callContainer = document.querySelector('#call .call-container');
+  if (callContainer) {
+    // Vérifier si l'élément de question existe déjà
+    let questionElement = document.getElementById('call-debate-question');
+    if (!questionElement) {
+      questionElement = document.createElement('div');
+      questionElement.id = 'call-debate-question';
+      questionElement.className = 'clash-debate-question';
+      questionElement.innerHTML = `
+        <h3>📝 Question de débat</h3>
+        <div class="debate-question-box">
+          <p>${sessionData.debateQuestion}</p>
+        </div>
+      `;
+      // Insérer après le header
+      const header = callContainer.querySelector('.call-header');
+      if (header) {
+        header.after(questionElement);
+      } else {
+        callContainer.insertBefore(questionElement, callContainer.firstChild);
+      }
+    } else {
+      // Mettre à jour la question
+      const questionBox = questionElement.querySelector('.debate-question-box p');
+      if (questionBox) {
+        questionBox.textContent = sessionData.debateQuestion;
+      }
+    }
+  }
+  
+  // Aller à la page d'appel
+  goTo("call");
+  
+  // Ouvrir automatiquement le lien Google Meet dans un nouvel onglet
+  if (sessionData.meetLink) {
+    window.open(sessionData.meetLink, '_blank');
+  }
 }
 
 function createOrJoinMeet() {
@@ -2008,75 +2264,65 @@ async function getRealPartnerStats(email) {
   }
 }
 
+/**
+ * Génère les avis clients - DÉSACTIVÉ
+ * Pour afficher de vrais avis, utilisez l'intégration Google Reviews
+ * ou collectez des témoignages authentiques via un formulaire
+ */
 function generateReviews() {
-  const reviews = [
-    {
-      name: "Sophie Martin",
-      class: "Terminale S",
-      rating: 5,
-      text: "Super expérience ! J'ai pu trouver quelqu'un rapidement pour m'aider en maths. La personne était très pédagogue.",
-      date: "Il y a 2 jours"
-    },
-    {
-      name: "Lucas Dubois",
-      class: "Première ES",
-      rating: 5,
-      text: "Application géniale pour réviser ! Les débats sont vraiment enrichissants et permettent de voir d'autres points de vue.",
-      date: "Il y a 5 jours"
-    },
-    {
-      name: "Emma Leroy",
-      class: "Seconde",
-      rating: 4,
-      text: "Très pratique pour s'entraîner à l'oral. J'ai progressé en confiance grâce aux nombreux échanges.",
-      date: "Il y a 1 semaine"
-    },
-    {
-      name: "Thomas Bernard",
-      class: "Terminale L",
-      rating: 5,
-      text: "Les professeurs sont vraiment compétents et disponibles. Ça m'a beaucoup aidé pour préparer mon bac de philo.",
-      date: "Il y a 3 jours"
-    },
-    {
-      name: "Chloé Petit",
-      class: "Première S",
-      rating: 5,
-      text: "Interface simple et efficace. J'ai trouvé un partenaire pour réviser l'histoire en quelques secondes !",
-      date: "Il y a 1 semaine"
-    },
-    {
-      name: "Alexandre Moreau",
-      class: "Terminale ES",
-      rating: 4,
-      text: "Excellente plateforme d'entraide. Les échanges sont de qualité et tout le monde est bienveillant.",
-      date: "Il y a 4 jours"
-    }
-  ];
-  
+  // Fonction désactivée - pas de faux avis
   const reviewsTrack = document.getElementById('reviews-track');
-  reviewsTrack.innerHTML = '';
-  
-  // Dupliquer les avis pour l'effet de défilement infini
-  const duplicatedReviews = [...reviews, ...reviews];
-  
-  duplicatedReviews.forEach(review => {
-    const reviewCard = document.createElement('div');
-    reviewCard.className = 'review-card';
-    
-    const initials = getInitials(review.name);
-    const stars = '⭐'.repeat(review.rating);
-    
-    reviewCard.innerHTML = `
-      <div class="review-header">
-        <div class="review-avatar">${initials}</div>
-        <div class="review-user-info">
-          <p class="review-user-name">${review.name}</p>
-          <p class="review-user-class">${review.class}</p>
-        </div>
+  if (reviewsTrack) {
+    reviewsTrack.innerHTML = `
+      <div style="text-align: center; padding: 40px 20px; color: #666;">
+        <p style="font-size: 18px; margin-bottom: 10px;">🌟 Partagez votre expérience</p>
+        <p style="font-size: 14px; margin-bottom: 20px;">Vous avez apprécié LOK IN ? Aidez-nous à grandir en laissant un avis !</p>
+        <a href="https://g.page/r/CSuSLlcLU4I-EAE/review" target="_blank" 
+           style="display: inline-block; padding: 12px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 25px; font-weight: 500; transition: transform 0.2s; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);"
+           onmouseover="this.style.transform='translateY(-2px)'"
+           onmouseout="this.style.transform='translateY(0)'">
+          ⭐ Laisser un avis Google
+        </a>
       </div>
-      <div class="review-stars">${stars}</div>
-      <p class="review-text">${review.text}</p>
+    `;
+  }
+}
+
+function showGoogleReviewPrompt() {
+  // Afficher une invitation à laisser un avis après une session réussie
+  const notification = document.createElement('div');
+  notification.className = 'google-review-notification';
+  notification.innerHTML = `
+    <div style="position: fixed; bottom: 20px; right: 20px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); z-index: 10000; max-width: 350px; animation: slideIn 0.3s ease-out;">
+      <button onclick="this.parentElement.parentElement.remove()" style="position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 20px; cursor: pointer; color: #999;">×</button>
+      <p style="margin: 0 0 15px 0; font-size: 16px; font-weight: 500; color: #333;">✨ Session terminée !</p>
+      <p style="margin: 0 0 15px 0; font-size: 14px; color: #666;">Vous avez apprécié LOK IN ? Votre avis compte beaucoup pour nous !</p>
+      <a href="https://g.page/r/CSuSLlcLU4I-EAE/review" target="_blank" 
+         onclick="this.parentElement.parentElement.remove()"
+         style="display: block; text-align: center; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 500;">
+        ⭐ Laisser un avis Google
+      </a>
+    </div>
+  `;
+  document.body.appendChild(notification);
+  
+  // Supprimer automatiquement après 15 secondes
+  setTimeout(() => {
+    if (notification.parentElement) {
+      notification.remove();
+    }
+  }, 15000);
+}
+
+/**
+ * Affiche de vrais avis Google (à implémenter avec l'API Google Places)
+ * Documentation : https://developers.google.com/maps/documentation/places/web-service/reviews
+ */
+function loadGoogleReviews() {
+  // TODO: Implémenter l'intégration avec Google Places API
+  // Nécessite une clé API Google et un Place ID
+  console.log('Google Reviews : À implémenter');
+}
       <div class="review-date">${review.date}</div>
     `;
     
@@ -2604,6 +2850,7 @@ function connectWebSocket() {
             sessionData.partnerIsTeacher = data.partner.isTeacher || false;
             sessionData.meetLink = data.meetLink;
             sessionData.meetId = data.meetId;
+            sessionData.matchId = data.matchId; // Important pour le Clash
             sessionData.matiere = data.matiere || sessionData.matiere;
             sessionData.niveau = data.niveau || sessionData.niveau;
             
@@ -2613,6 +2860,62 @@ function connectWebSocket() {
             } else {
               showFoundProfile();
             }
+            break;
+
+          case 'clashBothAccepted':
+            // Les deux utilisateurs ont accepté le Clash !
+            console.log('🎉 Les deux utilisateurs ont accepté le Clash !');
+            
+            // Mettre à jour le lien Meet et la question de débat depuis le serveur
+            if (data.meetLink) {
+              sessionData.meetLink = data.meetLink;
+            }
+            if (data.meetId) {
+              sessionData.meetId = data.meetId;
+            }
+            if (data.debateQuestion) {
+              sessionData.debateQuestion = data.debateQuestion;
+            }
+            
+            console.log('🔗 Lien Google Meet confirmé:', sessionData.meetLink);
+            
+            // Ouvrir le Meet avec la question de débat
+            openClashMeetWithQuestion();
+            break;
+
+          case 'clashPartnerRefused':
+            // L'autre utilisateur a refusé le Clash
+            console.log('❌ Votre partenaire a refusé le Clash');
+            
+            // Afficher une notification
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+              position: fixed;
+              top: 20px;
+              left: 50%;
+              transform: translateX(-50%);
+              background: #ff6b6b;
+              color: white;
+              padding: 15px 30px;
+              border-radius: 10px;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+              z-index: 10000;
+              font-size: 16px;
+              animation: slideDown 0.3s ease;
+            `;
+            notification.textContent = '❌ Votre partenaire a refusé. Nouvelle recherche...';
+            document.body.appendChild(notification);
+            
+            // Supprimer la notification après 3 secondes
+            setTimeout(() => {
+              notification.remove();
+            }, 3000);
+            
+            // Retourner à la recherche et relancer automatiquement
+            goTo('search');
+            setTimeout(() => {
+              startSearching();
+            }, 500);
             break;
 
           case 'teacherAvailableConfirmed':
