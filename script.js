@@ -2265,26 +2265,133 @@ async function getRealPartnerStats(email) {
 }
 
 /**
- * Génère les avis clients - DÉSACTIVÉ
- * Pour afficher de vrais avis, utilisez l'intégration Google Reviews
- * ou collectez des témoignages authentiques via un formulaire
+ * Génère les avis clients à partir du localStorage
  */
 function generateReviews() {
-  // Fonction désactivée - pas de faux avis
-  const reviewsTrack = document.getElementById('reviews-track');
-  if (reviewsTrack) {
-    reviewsTrack.innerHTML = `
+  const reviewsDisplay = document.getElementById('reviews-display');
+  if (!reviewsDisplay) return;
+  
+  // Récupérer les avis du localStorage
+  let reviews = JSON.parse(localStorage.getItem('lokin_reviews') || '[]');
+  
+  // Avis par défaut si aucun avis
+  if (reviews.length === 0) {
+    reviewsDisplay.innerHTML = `
       <div style="text-align: center; padding: 40px 20px; color: #666;">
-        <p style="font-size: 18px; margin-bottom: 10px;">🌟 Partagez votre expérience</p>
-        <p style="font-size: 14px; margin-bottom: 20px;">Vous avez apprécié LOK IN ? Aidez-nous à grandir en laissant un avis !</p>
-        <a href="https://g.page/r/CSuSLlcLU4I-EAE/review" target="_blank" 
-           style="display: inline-block; padding: 12px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 25px; font-weight: 500; transition: transform 0.2s; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);"
-           onmouseover="this.style.transform='translateY(-2px)'"
-           onmouseout="this.style.transform='translateY(0)'">
-          ⭐ Laisser un avis Google
-        </a>
+        <p style="font-size: 16px;">Soyez le premier à laisser un avis !</p>
       </div>
     `;
+    return;
+  }
+  
+  // Afficher les avis
+  reviewsDisplay.innerHTML = reviews.map(review => `
+    <div style="background: white; padding: 20px; margin-bottom: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <div>
+          <strong style="color: #333; font-size: 16px;">${escapeHtml(review.name)}</strong>
+          <div style="color: #ffd700; font-size: 18px; margin-top: 5px;">${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}</div>
+        </div>
+        <span style="color: #999; font-size: 14px;">${review.date}</span>
+      </div>
+      <p style="color: #555; line-height: 1.6; margin: 0;">${escapeHtml(review.text)}</p>
+    </div>
+  `).join('');
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function initReviewForm() {
+  // Gestion des étoiles
+  const stars = document.querySelectorAll('.star-input');
+  const ratingInput = document.getElementById('review-rating');
+  
+  stars.forEach(star => {
+    star.addEventListener('click', function() {
+      const rating = parseInt(this.getAttribute('data-rating'));
+      ratingInput.value = rating;
+      
+      stars.forEach((s, index) => {
+        if (index < rating) {
+          s.textContent = '★';
+          s.style.color = '#ffd700';
+        } else {
+          s.textContent = '☆';
+          s.style.color = '#ddd';
+        }
+      });
+    });
+    
+    star.addEventListener('mouseenter', function() {
+      const rating = parseInt(this.getAttribute('data-rating'));
+      stars.forEach((s, index) => {
+        if (index < rating) {
+          s.style.color = '#ffd700';
+        }
+      });
+    });
+  });
+  
+  document.getElementById('review-stars-input').addEventListener('mouseleave', function() {
+    const currentRating = parseInt(ratingInput.value);
+    stars.forEach((s, index) => {
+      if (index < currentRating) {
+        s.style.color = '#ffd700';
+      } else {
+        s.style.color = '#ddd';
+      }
+    });
+  });
+  
+  // Gestion du formulaire
+  const form = document.getElementById('review-form');
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const name = document.getElementById('review-name').value;
+      const rating = parseInt(document.getElementById('review-rating').value);
+      const text = document.getElementById('review-text').value;
+      
+      if (!rating) {
+        alert('Veuillez sélectionner une note');
+        return;
+      }
+      
+      // Créer l'avis
+      const review = {
+        name: name,
+        rating: rating,
+        text: text,
+        date: new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+      };
+      
+      // Sauvegarder dans localStorage
+      let reviews = JSON.parse(localStorage.getItem('lokin_reviews') || '[]');
+      reviews.unshift(review); // Ajouter en premier
+      localStorage.setItem('lokin_reviews', JSON.stringify(reviews));
+      
+      // Réinitialiser le formulaire
+      form.reset();
+      document.getElementById('review-rating').value = '0';
+      stars.forEach(s => {
+        s.textContent = '☆';
+        s.style.color = '#ddd';
+      });
+      
+      // Recharger les avis
+      generateReviews();
+      
+      // Message de confirmation
+      alert('Merci pour votre avis ! Il a été publié avec succès.');
+      
+      // Scroller vers les avis
+      document.getElementById('reviews-display').scrollIntoView({ behavior: 'smooth' });
+    });
   }
 }
 
@@ -3608,3 +3715,14 @@ window.goToStripeCheckout = goToStripeCheckout;
 
 console.log('💳 Stripe integration loaded');
 console.log('🧪 Test: simulateStripePayment("email@example.com", "premium")');
+
+// Initialiser le système d'avis au chargement
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    generateReviews();
+    initReviewForm();
+  });
+} else {
+  generateReviews();
+  initReviewForm();
+}
