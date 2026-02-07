@@ -2408,6 +2408,9 @@ function initReviewForm() {
       // Recharger les avis
       generateReviews();
       
+      // Fermer la modale
+      closeReviewModal();
+      
       // Message de confirmation stylé
       const confirmMsg = document.createElement('div');
       confirmMsg.innerHTML = `
@@ -2419,7 +2422,9 @@ function initReviewForm() {
       setTimeout(() => confirmMsg.remove(), 3000);
       
       // Scroller vers les avis
-      document.getElementById('reviews-display').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimeout(() => {
+        document.getElementById('reviews-display').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
     });
   }
 }
@@ -2449,6 +2454,30 @@ function showGoogleReviewPrompt() {
     }
   }, 15000);
 }
+
+// Fonctions pour gérer la modale d'avis
+function openReviewModal() {
+  const modal = document.getElementById('review-modal');
+  if (modal) {
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden'; // Empêcher le scroll
+  }
+}
+
+function closeReviewModal() {
+  const modal = document.getElementById('review-modal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = ''; // Réactiver le scroll
+  }
+}
+
+// Fermer la modale avec la touche Échap
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    closeReviewModal();
+  }
+});
 
 /**
  * Affiche de vrais avis Google (à implémenter avec l'API Google Places)
