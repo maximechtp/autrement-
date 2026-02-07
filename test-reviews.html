@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Avis - LOK IN</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f7fafc;
+    }
+    h1 {
+      text-align: center;
+      color: #2d3748;
+    }
+    #reviews-display {
+      margin-top: 30px;
+    }
+    button {
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 5px;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    .status {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .success { background: #c6f6d5; color: #22543d; }
+    .error { background: #fed7d7; color: #742a2a; }
+  </style>
+</head>
+<body>
+  <h1>🌟 Test du Système d'Avis</h1>
+  
+  <div style="text-align: center;">
+    <button onclick="loadReviews()">📖 Charger les avis</button>
+    <button onclick="addTestReview()">➕ Ajouter un avis de test</button>
+  </div>
+  
+  <div id="status"></div>
+  <div id="reviews-display"></div>
+
+  <script>
+    const API_URL = 'http://localhost:3000/api/reviews';
+
+    function escapeHtml(text) {
+      const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      };
+      return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    async function loadReviews() {
+      const statusDiv = document.getElementById('status');
+      const reviewsDisplay = document.getElementById('reviews-display');
+      
+      statusDiv.innerHTML = '<div class="status">⏳ Chargement des avis...</div>';
+      
+      try {
+        const response = await fetch(API_URL);
+        const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error('Erreur lors de la récupération des avis');
+        }
+        
+        const reviews = data.reviews || [];
+        
+        statusDiv.innerHTML = `<div class="status success">✅ ${reviews.length} avis chargés avec succès</div>`;
+        
+        if (reviews.length === 0) {
+          reviewsDisplay.innerHTML = `
+            <div style="text-align: center; padding: 60px 20px; background: white; border-radius: 12px;">
+              <div style="font-size: 48px; margin-bottom: 20px; opacity: 0.3;">💬</div>
+              <p style="font-size: 18px; color: #718096;">Aucun avis pour le moment</p>
+            </div>
+          `;
+          return;
+        }
+        
+        reviewsDisplay.innerHTML = `
+          <div style="display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+            ${reviews.map(review => `
+              <div style="background: white; padding: 28px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
+                  <div>
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                      <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 18px;">
+                        ${escapeHtml(review.name).charAt(0).toUpperCase()}
+                      </div>
+                      <strong style="color: #2d3748; font-size: 17px;">${escapeHtml(review.name)}</strong>
+                    </div>
+                    <div style="color: #fbbf24; font-size: 20px; letter-spacing: 2px;">
+                      ${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}
+                    </div>
+                  </div>
+                  <span style="color: #a0aec0; font-size: 13px;">${review.date}</span>
+                </div>
+                <p style="color: #4a5568; line-height: 1.7; margin: 0;">${escapeHtml(review.text)}</p>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (error) {
+        console.error('Erreur:', error);
+        statusDiv.innerHTML = '<div class="status error">❌ Erreur de chargement des avis</div>';
+      }
+    }
+
+    async function addTestReview() {
+      const names = ['Alice', 'Bob', 'Charlie', 'David', 'Emma'];
+      const texts = [
+        'Super application, très utile pour mes révisions !',
+        'Les professeurs sont vraiment compétents et à l\'écoute.',
+        'Interface simple et efficace, je recommande !',
+        'Parfait pour trouver de l\'aide rapidement.',
+        'Excellente plateforme d\'apprentissage en ligne.'
+      ];
+      
+      const name = names[Math.floor(Math.random() * names.length)];
+      const rating = Math.floor(Math.random() * 2) + 4; // 4 ou 5 étoiles
+      const text = texts[Math.floor(Math.random() * texts.length)];
+      
+      const statusDiv = document.getElementById('status');
+      statusDiv.innerHTML = '<div class="status">⏳ Ajout de l\'avis...</div>';
+      
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ name, rating, text })
+        });
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error(data.error || 'Erreur lors de l\'ajout');
+        }
+        
+        statusDiv.innerHTML = `<div class="status success">✅ Avis de "${name}" ajouté avec succès !</div>`;
+        
+        // Recharger les avis
+        setTimeout(() => loadReviews(), 500);
+      } catch (error) {
+        console.error('Erreur:', error);
+        statusDiv.innerHTML = '<div class="status error">❌ Erreur lors de l\'ajout de l\'avis</div>';
+      }
+    }
+
+    // Charger automatiquement au démarrage
+    loadReviews();
+  </script>
+</body>
+</html>

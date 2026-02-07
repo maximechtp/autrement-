@@ -1262,6 +1262,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Setup footer scroll detection
   initializeFooterScroll();
   
+  // Setup language card selection (multi-select)
+  setupLanguageCardSelection();
+  
   // Restaurer la session depuis la base de données
   const user = userDB.getCurrentUser();
   if (user) {
@@ -1684,10 +1687,41 @@ function updateLanguageTitle(option) {
   }
 }
 
+/* ---------- Language Selection (Multi-select) ---------- */
+function setupLanguageCardSelection() {
+  const languageCards = document.querySelectorAll('.language-card');
+  
+  languageCards.forEach(card => {
+    card.addEventListener('click', () => {
+      // Toggle la classe selected
+      card.classList.toggle('selected');
+      
+      // Mettre à jour le select caché pour compatibilité
+      const select = document.getElementById('langue-select');
+      const selectedCards = document.querySelectorAll('.language-card.selected');
+      
+      if (selectedCards.length > 0) {
+        // Mettre la première langue sélectionnée dans le select
+        select.value = selectedCards[0].dataset.lang;
+      }
+    });
+  });
+}
+
 function confirmLanguage() {
-  const languageSelect = document.getElementById("langue-select");
-  sessionData.langue = languageSelect.value;
-  console.log("Language selected:", sessionData.langue);
+  const selectedCards = document.querySelectorAll('.language-card.selected');
+  
+  if (selectedCards.length === 0) {
+    alert('Veuillez sélectionner au moins une langue');
+    return;
+  }
+  
+  // Récupérer toutes les langues sélectionnées
+  sessionData.langues = Array.from(selectedCards).map(card => card.dataset.lang);
+  // Garder la compatibilité avec l'ancien code
+  sessionData.langue = sessionData.langues[0];
+  
+  console.log("Languages selected:", sessionData.langues);
   
   // Pour le Clash et JustSpeak, aller directement à la recherche en temps réel
   if (sessionData.option === "debat" || sessionData.option === "chat") {
@@ -1890,7 +1924,10 @@ function startSearching() {
   if (searchText) {
     const activityType = sessionData.option === 'debat' ? 'Clash' : 
                          sessionData.option === 'chat' ? 'JustSpeak' : 'Cours';
-    searchText.textContent = `Recherche d'un partenaire pour ${activityType} en ${sessionData.langue}.\nVous serez mis en relation dès qu'un utilisateur sera disponible.`;
+    const languesText = sessionData.langues && sessionData.langues.length > 1 
+      ? sessionData.langues.join(', ') 
+      : sessionData.langue;
+    searchText.textContent = `Recherche d'un partenaire pour ${activityType} en ${languesText}.\nVous serez mis en relation dès qu'un utilisateur sera disponible.`;
   }
   
   // Envoyer la demande de recherche au serveur
@@ -1898,6 +1935,7 @@ function startSearching() {
     type: 'startSearch',
     searchType: sessionData.option,
     language: sessionData.langue,
+    languages: sessionData.langues || [sessionData.langue], // Envoyer toutes les langues
     matiere: sessionData.matiere,
     niveau: sessionData.niveau,
     email: sessionData.email,
@@ -2265,53 +2303,71 @@ async function getRealPartnerStats(email) {
 }
 
 /**
- * Génère les avis clients à partir du localStorage
+ * Génère les avis clients à partir de l'API serveur
  */
-function generateReviews() {
+async function generateReviews() {
   const reviewsDisplay = document.getElementById('reviews-display');
   if (!reviewsDisplay) return;
   
-  // Récupérer les avis du localStorage
-  let reviews = JSON.parse(localStorage.getItem('lokin_reviews') || '[]');
+  try {
+    // Récupérer les avis depuis le serveur
+    const response = await fetch('http://localhost:3000/api/reviews');
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error('Erreur lors de la récupération des avis');
+    }
+    
+    const reviews = data.reviews || [];
   
-  // Avis par défaut si aucun avis
-  if (reviews.length === 0) {
+    // Avis par défaut si aucun avis
+    if (reviews.length === 0) {
+      reviewsDisplay.innerHTML = `
+        <div style="text-align: center; padding: 60px 20px;">
+          <div style="font-size: 48px; margin-bottom: 20px; opacity: 0.3;">💬</div>
+          <p style="font-size: 18px; color: #718096; font-weight: 500;">Aucun avis pour le moment</p>
+          <p style="font-size: 14px; color: #a0aec0; margin-top: 8px;">Soyez le premier à partager votre expérience !</p>
+        </div>
+      `;
+      return;
+    }
+  
+    // Afficher les avis avec un design moderne
     reviewsDisplay.innerHTML = `
-      <div style="text-align: center; padding: 60px 20px;">
-        <div style="font-size: 48px; margin-bottom: 20px; opacity: 0.3;">💬</div>
-        <p style="font-size: 18px; color: #718096; font-weight: 500;">Aucun avis pour le moment</p>
-        <p style="font-size: 14px; color: #a0aec0; margin-top: 8px;">Soyez le premier à partager votre expérience !</p>
+      <div style="display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+        ${reviews.map(review => `
+          <div style="background: white; padding: 28px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; transition: all 0.3s;"
+               onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 30px rgba(0,0,0,0.12)'"
+               onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.08)'">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                  <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 18px;">
+                    ${escapeHtml(review.name).charAt(0).toUpperCase()}
+                  </div>
+                  <strong style="color: #2d3748; font-size: 17px; font-weight: 600;">${escapeHtml(review.name)}</strong>
+                </div>
+                <div style="color: #fbbf24; font-size: 20px; letter-spacing: 2px;">
+                  ${'★'.repeat(review.rating)}${review.rating < 5 ? '<span style="color: #e2e8f0;">' + '★'.repeat(5 - review.rating) + '</span>' : ''}
+                </div>
+              </div>
+              <span style="color: #a0aec0; font-size: 13px; white-space: nowrap;">${review.date}</span>
+            </div>
+            <p style="color: #4a5568; line-height: 1.7; margin: 0; font-size: 15px;">${escapeHtml(review.text)}</p>
+          </div>
+        `).join('')}
       </div>
     `;
-    return;
+  } catch (error) {
+    console.error('❌ Erreur lors du chargement des avis:', error);
+    reviewsDisplay.innerHTML = `
+      <div style="text-align: center; padding: 60px 20px;">
+        <div style="font-size: 48px; margin-bottom: 20px; opacity: 0.3;">⚠️</div>
+        <p style="font-size: 18px; color: #718096; font-weight: 500;">Erreur de chargement des avis</p>
+        <p style="font-size: 14px; color: #a0aec0; margin-top: 8px;">Veuillez réessayer plus tard</p>
+      </div>
+    `;
   }
-  
-  // Afficher les avis avec un design moderne
-  reviewsDisplay.innerHTML = `
-    <div style="display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
-      ${reviews.map(review => `
-        <div style="background: white; padding: 28px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; transition: all 0.3s;"
-             onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 30px rgba(0,0,0,0.12)'"
-             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.08)'">
-          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
-            <div>
-              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-                <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 18px;">
-                  ${escapeHtml(review.name).charAt(0).toUpperCase()}
-                </div>
-                <strong style="color: #2d3748; font-size: 17px; font-weight: 600;">${escapeHtml(review.name)}</strong>
-              </div>
-              <div style="color: #fbbf24; font-size: 20px; letter-spacing: 2px;">
-                ${'★'.repeat(review.rating)}${review.rating < 5 ? '<span style="color: #e2e8f0;">' + '★'.repeat(5 - review.rating) + '</span>' : ''}
-              </div>
-            </div>
-            <span style="color: #a0aec0; font-size: 13px; white-space: nowrap;">${review.date}</span>
-          </div>
-          <p style="color: #4a5568; line-height: 1.7; margin: 0; font-size: 15px;">${escapeHtml(review.text)}</p>
-        </div>
-      `).join('')}
-    </div>
-  `;
 }
 
 function escapeHtml(text) {
@@ -2371,7 +2427,7 @@ function initReviewForm() {
   // Gestion du formulaire
   const form = document.getElementById('review-form');
   if (form) {
-    form.addEventListener('submit', function(e) {
+    form.addEventListener('submit', async function(e) {
       e.preventDefault();
       
       const name = document.getElementById('review-name').value;
@@ -2383,48 +2439,55 @@ function initReviewForm() {
         return;
       }
       
-      // Créer l'avis
-      const review = {
-        name: name,
-        rating: rating,
-        text: text,
-        date: new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-      };
-      
-      // Sauvegarder dans localStorage
-      let reviews = JSON.parse(localStorage.getItem('lokin_reviews') || '[]');
-      reviews.unshift(review); // Ajouter en premier
-      localStorage.setItem('lokin_reviews', JSON.stringify(reviews));
-      
-      // Réinitialiser le formulaire
-      form.reset();
-      document.getElementById('review-rating').value = '0';
-      stars.forEach(s => {
-        s.textContent = '☆';
-        s.style.color = '#e2e8f0';
-        s.style.transform = 'scale(1)';
-      });
-      
-      // Recharger les avis
-      generateReviews();
-      
-      // Fermer la modale
-      closeReviewModal();
-      
-      // Message de confirmation stylé
-      const confirmMsg = document.createElement('div');
-      confirmMsg.innerHTML = `
-        <div style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 32px; border-radius: 12px; box-shadow: 0 10px 40px rgba(102, 126, 234, 0.4); z-index: 10000; animation: slideDown 0.3s ease-out;">
-          <p style="margin: 0; font-weight: 500; font-size: 15px;">✓ Merci ! Votre avis a été publié avec succès</p>
-        </div>
-      `;
-      document.body.appendChild(confirmMsg);
-      setTimeout(() => confirmMsg.remove(), 3000);
-      
-      // Scroller vers les avis
-      setTimeout(() => {
-        document.getElementById('reviews-display').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 300);
+      try {
+        // Envoyer l'avis au serveur
+        const response = await fetch('http://localhost:3000/api/reviews', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ name, rating, text })
+        });
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error(data.error || 'Erreur lors de l\'envoi de l\'avis');
+        }
+        
+        // Réinitialiser le formulaire
+        form.reset();
+        document.getElementById('review-rating').value = '0';
+        stars.forEach(s => {
+          s.textContent = '☆';
+          s.style.color = '#e2e8f0';
+          s.style.transform = 'scale(1)';
+        });
+        
+        // Recharger les avis
+        await generateReviews();
+        
+        // Fermer la modale
+        closeReviewModal();
+        
+        // Message de confirmation stylé
+        const confirmMsg = document.createElement('div');
+        confirmMsg.innerHTML = `
+          <div style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 32px; border-radius: 12px; box-shadow: 0 10px 40px rgba(102, 126, 234, 0.4); z-index: 10000; animation: slideDown 0.3s ease-out;">
+            <p style="margin: 0; font-weight: 500; font-size: 15px;">✓ Merci ! Votre avis a été publié avec succès</p>
+          </div>
+        `;
+        document.body.appendChild(confirmMsg);
+        setTimeout(() => confirmMsg.remove(), 3000);
+        
+        // Scroller vers les avis
+        setTimeout(() => {
+          document.getElementById('reviews-display').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 300);
+      } catch (error) {
+        console.error('❌ Erreur lors de l\'envoi de l\'avis:', error);
+        alert('❌ Une erreur est survenue lors de l\'envoi de votre avis. Veuillez réessayer.');
+      }
     });
   }
 }

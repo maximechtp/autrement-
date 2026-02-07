@@ -1,7 +1,21 @@
 const WebSocket = require('ws');
+const express = require('express');
+const http = require('http');
+const cors = require('cors');
+
+// Configuration des ports
+const WS_PORT = process.env.PORT || 8080;
+const HTTP_PORT = process.env.HTTP_PORT || 3000;
+
+// Configuration du serveur HTTP pour les API REST
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const httpServer = http.createServer(app);
 
 // Configuration du serveur WebSocket
-const PORT = process.env.PORT || 8080;
+const PORT = WS_PORT;
 const wss = new WebSocket.Server({ 
   port: PORT,
   // Permet les connexions cross-origin (nécessaire pour HTTPS → WS)
@@ -26,6 +40,10 @@ const availableTeachers = new Map();
 // Acceptations de Clash en attente (pour acceptation mutuelle)
 // Structure: { matchId: { user1: clientId1, user2: clientId2, user1Accepted: false, user2Accepted: false, debateQuestion: string, meetLink: string } }
 const clashAcceptances = new Map();
+
+// Stockage des avis clients (partagé entre tous les utilisateurs)
+// Structure: [{ name, rating, text, date, timestamp }, ...]
+const reviews = [];
 
 // Génère un ID unique pour chaque client
 function generateClientId() {
@@ -239,7 +257,7 @@ function handleStartSearch(clientId, message) {
     return;
   }
 
-  const { searchType, language, matiere, niveau, email, prenom, nom, classe } = message;
+  const { searchType, language, languages, matiere, niveau, email, prenom, nom, classe } = message;
   
   // Valider les paramètres
   if (!searchType) {
@@ -254,6 +272,7 @@ function handleStartSearch(clientId, message) {
   user.isSearching = true;
   user.searchType = searchType;
   user.searchLanguage = language;
+  user.searchLanguages = languages || [language]; // Stocker toutes les langues
   user.searchMatiere = matiere || null;
   user.searchNiveau = niveau || null;
   user.email = email || user.email;
@@ -269,111 +288,149 @@ function handleStartSearch(clientId, message) {
     return;
   }
 
-  console.log(`🔍 ${user.name} recherche un ${searchType} en ${language}`);
+  const languesText = user.searchLanguages.join(', ');
+  console.log(`🔍 ${user.name} recherche un ${searchType} en ${languesText}`);
 
-  // Créer la clé de la file d'attente
-  const queueKey = `${searchType}:${language}`;
+  // Chercher un match dans toutes les files correspondant aux langues de l'utilisateur
+  let matched = false;
   
-  // Initialiser la file si elle n'existe pas
-  if (!matchingQueues.has(queueKey)) {
-    matchingQueues.set(queueKey, []);
-  }
-
-  const queue = matchingQueues.get(queueKey);
-  
-  // Vérifier s'il y a quelqu'un en attente dans cette file
-  if (queue.length > 0) {
-    // Matcher avec le premier utilisateur en attente
-    const matchedClientId = queue.shift();
-    const matchedUser = connectedUsers.get(matchedClientId);
+  for (const userLang of user.searchLanguages) {
+    if (matched) break;
     
-    if (matchedUser && matchedUser.ws.readyState === WebSocket.OPEN) {
-      // Créer une salle Jitsi avec notre intégration personnalisée
-      const meetId = generateMeetId();
-      const meetLink = `https://lokin.online/jitsi-room.html?room=${meetId}`;
+    const queueKey = `${searchType}:${userLang}`;
+    
+    // Initialiser la file si elle n'existe pas
+    if (!matchingQueues.has(queueKey)) {
+      matchingQueues.set(queueKey, []);
+    }
+
+    const queue = matchingQueues.get(queueKey);
+    
+    // Chercher un utilisateur compatible (qui a au moins une langue en commun)
+    for (let i = 0; i < queue.length; i++) {
+      const matchedClientId = queue[i];
+      const matchedUser = connectedUsers.get(matchedClientId);
       
-      // Générer un matchId unique pour gérer les acceptations
-      const matchIdUnique = `match_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      if (!matchedUser || matchedUser.ws.readyState !== WebSocket.OPEN) {
+        // Retirer les utilisateurs déconnectés
+        queue.splice(i, 1);
+        i--;
+        continue;
+      }
       
-      console.log(`✅ Match trouvé ! ${user.name} ↔️ ${matchedUser.name}`);
-      console.log(`📹 Google Meet créé: ${meetLink}`);
+      // Vérifier s'il y a une langue en commun
+      const commonLanguages = user.searchLanguages.filter(lang => 
+        matchedUser.searchLanguages.includes(lang)
+      );
       
-      // Si c'est un Clash (debat), initialiser le système d'acceptation mutuelle
-      if (searchType === 'debat') {
-        clashAcceptances.set(matchIdUnique, {
-          user1: clientId,
-          user2: matchedClientId,
-          user1Accepted: false,
-          user2Accepted: false,
-          debateQuestion: null,
+      if (commonLanguages.length > 0) {
+        // Match trouvé! Retirer de la file
+        queue.splice(i, 1);
+        matched = true;
+        
+        // Créer une salle Jitsi avec notre intégration personnalisée
+        const meetId = generateMeetId();
+        const meetLink = `https://lokin.online/jitsi-room.html?room=${meetId}`;
+        
+        // Générer un matchId unique pour gérer les acceptations
+        const matchIdUnique = `match_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        const commonLangsText = commonLanguages.join(', ');
+        console.log(`✅ Match trouvé ! ${user.name} ↔️ ${matchedUser.name} (langue(s) commune(s): ${commonLangsText})`);
+        console.log(`📹 Google Meet créé: ${meetLink}`);
+        
+        // Si c'est un Clash (debat), initialiser le système d'acceptation mutuelle
+        if (searchType === 'debat') {
+          clashAcceptances.set(matchIdUnique, {
+            user1: clientId,
+            user2: matchedClientId,
+            user1Accepted: false,
+            user2Accepted: false,
+            debateQuestion: null,
+            meetLink: meetLink,
+            meetId: meetId,
+            timestamp: Date.now()
+          });
+          
+          console.log(`🔥 Clash initialisé avec matchId: ${matchIdUnique}`);
+        }
+        
+        // Envoyer le match aux deux utilisateurs
+        const matchData = {
+          type: 'matchFound',
           meetLink: meetLink,
           meetId: meetId,
-          timestamp: Date.now()
-        });
+          matchId: matchIdUnique,
+          partner: {
+            name: matchedUser.name,
+            prenom: matchedUser.prenom,
+            nom: matchedUser.nom,
+            classe: matchedUser.classe,
+            email: matchedUser.email
+          }
+        };
         
-        console.log(`🔥 Clash initialisé avec matchId: ${matchIdUnique}`);
-      }
-      
-      // Envoyer le match aux deux utilisateurs
-      const matchData = {
-        type: 'matchFound',
-        meetLink: meetLink,
-        meetId: meetId,
-        matchId: matchIdUnique,
-        partner: {
-          name: matchedUser.name,
-          prenom: matchedUser.prenom,
-          nom: matchedUser.nom,
-          classe: matchedUser.classe,
-          email: matchedUser.email
+        const matchDataForMatched = {
+          type: 'matchFound',
+          meetLink: meetLink,
+          meetId: meetId,
+          matchId: matchIdUnique,
+          partner: {
+            name: user.name,
+            prenom: user.prenom,
+            nom: user.nom,
+            classe: user.classe,
+            email: user.email
+          }
+        };
+        
+        // Envoyer aux deux utilisateurs avec vérification de l'état de connexion
+        if (user.ws.readyState === WebSocket.OPEN) {
+          user.ws.send(JSON.stringify(matchData));
+        } else {
+          console.warn(`⚠️ Impossible d'envoyer le match à ${user.name} (connexion fermée)`);
         }
-      };
-      
-      const matchDataForMatched = {
-        type: 'matchFound',
-        meetLink: meetLink,
-        meetId: meetId,
-        matchId: matchIdUnique,
-        partner: {
-          name: user.name,
-          prenom: user.prenom,
-          nom: user.nom,
-          classe: user.classe,
-          email: user.email
+        
+        if (matchedUser.ws.readyState === WebSocket.OPEN) {
+          matchedUser.ws.send(JSON.stringify(matchDataForMatched));
+        } else {
+          console.warn(`⚠️ Impossible d'envoyer le match à ${matchedUser.name} (connexion fermée)`);
         }
-      };
-      
-      // Envoyer aux deux utilisateurs avec vérification de l'état de connexion
-      if (user.ws.readyState === WebSocket.OPEN) {
-        user.ws.send(JSON.stringify(matchData));
-      } else {
-        console.warn(`⚠️ Impossible d'envoyer le match à ${user.name} (connexion fermée)`);
+        
+        // Marquer comme non plus en recherche (sauf pour les Clash où on attend l'acceptation)
+        if (searchType !== 'debat') {
+          user.isSearching = false;
+          matchedUser.isSearching = false;
+        }
+        
+        // Nettoyer les données de recherche
+        user.searchType = null;
+        user.searchLanguage = null;
+        user.searchLanguages = [];
+        matchedUser.searchType = null;
+        matchedUser.searchLanguage = null;
+        matchedUser.searchLanguages = [];
+        
+        break; // Sortir de la boucle for
       }
-      
-      if (matchedUser.ws.readyState === WebSocket.OPEN) {
-        matchedUser.ws.send(JSON.stringify(matchDataForMatched));
-      } else {
-        console.warn(`⚠️ Impossible d'envoyer le match à ${matchedUser.name} (connexion fermée)`);
-      }
-      
-      // Marquer comme non plus en recherche (sauf pour les Clash où on attend l'acceptation)
-      if (searchType !== 'debat') {
-        user.isSearching = false;
-        matchedUser.isSearching = false;
-      }
-      
-      // Nettoyer les données de recherche
-      user.searchType = null;
-      user.searchLanguage = null;
-      matchedUser.searchType = null;
-      matchedUser.searchLanguage = null;
-    } else {
-      // L'utilisateur matché n'est plus disponible, ajouter à la file
-      addToQueue(clientId, queueKey);
     }
-  } else {
-    // Personne en attente, ajouter à la file
-    addToQueue(clientId, queueKey);
+    
+    if (matched) break; // Sortir de la boucle des langues
+  }
+  
+  // Si aucun match trouvé, ajouter à toutes les files d'attente correspondant aux langues
+  if (!matched) {
+    for (const userLang of user.searchLanguages) {
+      const queueKey = `${searchType}:${userLang}`;
+      if (!matchingQueues.has(queueKey)) {
+        matchingQueues.set(queueKey, []);
+      }
+      const queue = matchingQueues.get(queueKey);
+      if (!queue.includes(clientId)) {
+        queue.push(clientId);
+      }
+    }
+    console.log(`⏳ ${user.name} ajouté aux files d'attente pour: ${user.searchLanguages.join(', ')}`);
   }
   
   // Envoyer la mise à jour de la file d'attente
@@ -853,22 +910,75 @@ setInterval(() => {
   });
 }, 30000);
 
-console.log('╔════════════════════════════════════════════════╗');
-console.log('║   🚀 Serveur WebSocket LOK IN                 ║');
-console.log('╚════════════════════════════════════════════════╝');
-console.log('');
-console.log(`📍 Port: ${PORT}`);
-console.log(`🌐 Protocol: ws:// (local) / wss:// (production)`);
-console.log(`⏰ Démarré le: ${new Date().toLocaleString('fr-FR')}`);
-console.log('');
-console.log('📊 Statistiques:');
-console.log(`   - Utilisateurs connectés: 0`);
-console.log(`   - Files d'attente actives: 0`);
-console.log(`   - Professeurs disponibles: 0`);
-console.log('');
-console.log('✅ Serveur prêt à recevoir des connexions');
-console.log('📡 En attente...');
-console.log('');
+// ============== ENDPOINTS API REST POUR LES AVIS ==============
+
+/**
+ * GET /api/reviews - Récupérer tous les avis
+ */
+app.get('/api/reviews', (req, res) => {
+  console.log('📖 Requête GET /api/reviews - Récupération des avis');
+  res.json({ success: true, reviews: reviews });
+});
+
+/**
+ * POST /api/reviews - Ajouter un nouvel avis
+ */
+app.post('/api/reviews', (req, res) => {
+  const { name, rating, text } = req.body;
+  
+  // Validation
+  if (!name || !rating || !text) {
+    console.log('❌ Avis invalide: données manquantes');
+    return res.status(400).json({ success: false, error: 'Données manquantes' });
+  }
+  
+  if (rating < 1 || rating > 5) {
+    console.log('❌ Avis invalide: note incorrecte');
+    return res.status(400).json({ success: false, error: 'La note doit être entre 1 et 5' });
+  }
+  
+  // Créer l'avis
+  const review = {
+    name: name,
+    rating: rating,
+    text: text,
+    date: new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
+    timestamp: Date.now()
+  };
+  
+  // Ajouter en début de liste
+  reviews.unshift(review);
+  
+  console.log(`✅ Nouvel avis ajouté: ${name} - ${rating}★`);
+  console.log(`   Total avis: ${reviews.length}`);
+  
+  res.json({ success: true, review: review });
+});
+
+// Démarrer le serveur HTTP
+httpServer.listen(HTTP_PORT, () => {
+  console.log('═══════════════════════════════════════════════════════════');
+  console.log('║   🚀 SERVEUR LOK IN DÉMARRÉ                  ║');
+  console.log('═══════════════════════════════════════════════════════════');
+  console.log('');
+  console.log(`🌐 Port HTTP (API REST): ${HTTP_PORT}`);
+  console.log(`🌐 Port WebSocket: ${PORT}`);
+  console.log(`🌐 Protocol: ws:// (local) / wss:// (production)`);
+  console.log(`⏰ Démarré le: ${new Date().toLocaleString('fr-FR')}`);
+  console.log('');
+  console.log('📊 Statistiques:');
+  console.log(`   - Utilisateurs connectés: 0`);
+  console.log(`   - Files d'attente actives: 0`);
+  console.log(`   - Professeurs disponibles: 0`);
+  console.log(`   - Avis partagés: ${reviews.length}`);
+  console.log('');
+  console.log('✅ Serveurs prêts à recevoir des connexions');
+  console.log('📡 En attente...');
+  console.log('');
+});
+
+console.log('═══════════════════════════════════════════════════════════');
+
 
 // Gestion de l'arrêt propre du serveur
 process.on('SIGTERM', () => {
