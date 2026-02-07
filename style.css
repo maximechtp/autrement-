@@ -152,7 +152,7 @@ button.btn-secondary:hover {
 .social-section {
   flex: 1;
   min-width: 300px;
-  max-width: 200px;
+  max-width: 400px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -834,6 +834,9 @@ button.btn-secondary:hover {
   box-shadow: 0 8px 20px rgba(255, 71, 87, 0.4);
   font-size: 24px;
   font-weight: bold;
+  color: white;
+  border: none;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1030,7 +1033,7 @@ input::placeholder {
   margin-top: 30px;
   background: rgba(255, 255, 255, 0.95);
   padding: 30px;
-  padding-bottom: 200px;
+  padding-bottom: 60px;
   border-radius: 20px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(10px);
@@ -1042,7 +1045,7 @@ input::placeholder {
   width: 100%;
   max-width: 1200px;
   box-sizing: border-box;
-  min-height: 800px;
+  min-height: 400px;
 }
 
 /* Welcome Message */

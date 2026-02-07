@@ -25,7 +25,7 @@
 <body>
 
 <div id="header-nav" role="navigation" aria-label="Navigation principale">
-  <button id="btn-back" class="btn-bubble" aria-label="Retour à la page précédente" title="Retour">&lt;</button>
+  <button id="btn-back" class="btn-bubble" aria-label="Retour à la page précédente" title="Retour">←</button>
   <div id="user-avatar" class="user-avatar hidden" aria-label="Profil utilisateur" title="">
     <img id="avatar-img" src="" alt="Photo de profil">
   </div>
@@ -40,16 +40,46 @@
   <button data-action="checkLoginAndGo" data-param="professeur" aria-label="Accès pour les professeurs">🧑‍🏫 Je suis professeur</button>
 
   <div id="home-footer" class="home-footer">
-    <div class="reviews-section">
-      <h3 class="reviews-title">Avis de nos clients</h3>
+    <!-- Conteneur flex pour avis affichés à gauche et réseaux sociaux à droite -->
+    <div style="display: flex; justify-content: center; align-items: flex-start; gap: 240px; flex-wrap: wrap; margin: 10px auto 40px; max-width: 1200px; padding: 0 20px;">
       
-      <!-- Avis affichés directement -->
-      <div id="reviews-display" style="max-width: 900px; margin: 0 auto; padding: 20px;">
-        <!-- Les avis seront chargés ici -->
+      <!-- Section Avis clients affichés à gauche -->
+      <div class="reviews-section" style="flex: 1; min-width: 300px; max-width: 450px;">
+        <h3 class="reviews-title">Avis de nos clients</h3>
+        <!-- Avis affichés directement -->
+        <div id="reviews-display" style="padding: 20px;">
+          <!-- Les avis seront chargés ici -->
+        </div>
       </div>
       
+      <!-- Section Réseaux Sociaux à droite -->
+      <div class="social-section" style="flex: 1; min-width: 300px; max-width: 450px;">
+        <h3 class="social-title">Nous suivre</h3>
+        <div class="social-box">
+          <a href="https://www.instagram.com/lokin.officiel/" target="_blank" rel="noopener noreferrer" aria-label="Rejoindre sur Instagram" class="social-link instagram">
+            <span class="social-icon-wrapper instagram-gradient">
+              <svg class="social-icon" viewBox="0 0 24 24" fill="white">
+                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.266.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zM5.838 12a6.162 6.162 0 1 1 12.324 0 6.162 6.162 0 0 1-12.324 0zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm4.965-10.322a1.44 1.44 0 1 1 2.881.001 1.44 1.44 0 0 1-2.881-.001z"/>
+              </svg>
+            </span>
+            <span class="social-text">Notre Instagram</span>
+          </a>
+          <a href="https://www.facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Rejoindre sur Facebook" class="social-link facebook">
+            <span class="social-icon-wrapper facebook-bg">
+              <svg class="social-icon" viewBox="0 0 24 24" fill="white">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+              </svg>
+            </span>
+            <span class="social-text">Notre Facebook</span>
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Section Laisser un avis (en dessous, centré) -->
+    <div style="max-width: 600px; margin: 40px auto; padding: 0 20px;">
       <!-- Bouton pour ouvrir le formulaire -->
-      <div style="text-align: center; margin: 40px 0;">
+      <div style="text-align: center; margin-bottom: 30px;">
         <button onclick="openReviewModal()" 
                 style="padding: 16px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);"
                 onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)'"
@@ -58,7 +88,7 @@
         </button>
       </div>
       
-      <div style="text-align: center; margin-top: 20px; margin-bottom: 40px;">
+      <div style="text-align: center;">
         <p style="font-size: 14px; color: #718096; margin-bottom: 12px;">Ou laissez un avis sur Google</p>
         <a href="https://g.page/r/CSuSLlcLU4I-EAE/review" target="_blank" 
            style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 24px; background: white; border: 2px solid #e2e8f0; color: #4a5568; text-decoration: none; border-radius: 10px; font-size: 14px; font-weight: 500; transition: all 0.3s;"
@@ -120,29 +150,6 @@
             Publier mon avis
           </button>
         </form>
-      </div>
-    </div>
-  </div>
-
-    <div class="social-section">
-      <h3 class="social-title">Nous suivre</h3>
-      <div class="social-box">
-        <a href="https://www.instagram.com/lokin.officiel/" target="_blank" rel="noopener noreferrer" aria-label="Rejoindre sur Instagram" class="social-link instagram">
-          <span class="social-icon-wrapper instagram-gradient">
-            <svg class="social-icon" viewBox="0 0 24 24" fill="white">
-              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.266.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zM5.838 12a6.162 6.162 0 1 1 12.324 0 6.162 6.162 0 0 1-12.324 0zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm4.965-10.322a1.44 1.44 0 1 1 2.881.001 1.44 1.44 0 0 1-2.881-.001z"/>
-            </svg>
-          </span>
-          <span class="social-text">Notre Instagram</span>
-        </a>
-        <a href="https://www.facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Rejoindre sur Facebook" class="social-link facebook">
-          <span class="social-icon-wrapper facebook-bg">
-            <svg class="social-icon" viewBox="0 0 24 24" fill="white">
-              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-            </svg>
-          </span>
-          <span class="social-text">Notre Facebook</span>
-        </a>
       </div>
     </div>
   </div>
