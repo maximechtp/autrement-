@@ -2277,26 +2277,41 @@ function generateReviews() {
   // Avis par défaut si aucun avis
   if (reviews.length === 0) {
     reviewsDisplay.innerHTML = `
-      <div style="text-align: center; padding: 40px 20px; color: #666;">
-        <p style="font-size: 16px;">Soyez le premier à laisser un avis !</p>
+      <div style="text-align: center; padding: 60px 20px;">
+        <div style="font-size: 48px; margin-bottom: 20px; opacity: 0.3;">💬</div>
+        <p style="font-size: 18px; color: #718096; font-weight: 500;">Aucun avis pour le moment</p>
+        <p style="font-size: 14px; color: #a0aec0; margin-top: 8px;">Soyez le premier à partager votre expérience !</p>
       </div>
     `;
     return;
   }
   
-  // Afficher les avis
-  reviewsDisplay.innerHTML = reviews.map(review => `
-    <div style="background: white; padding: 20px; margin-bottom: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <div>
-          <strong style="color: #333; font-size: 16px;">${escapeHtml(review.name)}</strong>
-          <div style="color: #ffd700; font-size: 18px; margin-top: 5px;">${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}</div>
+  // Afficher les avis avec un design moderne
+  reviewsDisplay.innerHTML = `
+    <div style="display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+      ${reviews.map(review => `
+        <div style="background: white; padding: 28px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; transition: all 0.3s;"
+             onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 30px rgba(0,0,0,0.12)'"
+             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.08)'">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 18px;">
+                  ${escapeHtml(review.name).charAt(0).toUpperCase()}
+                </div>
+                <strong style="color: #2d3748; font-size: 17px; font-weight: 600;">${escapeHtml(review.name)}</strong>
+              </div>
+              <div style="color: #fbbf24; font-size: 20px; letter-spacing: 2px;">
+                ${'★'.repeat(review.rating)}${review.rating < 5 ? '<span style="color: #e2e8f0;">' + '★'.repeat(5 - review.rating) + '</span>' : ''}
+              </div>
+            </div>
+            <span style="color: #a0aec0; font-size: 13px; white-space: nowrap;">${review.date}</span>
+          </div>
+          <p style="color: #4a5568; line-height: 1.7; margin: 0; font-size: 15px;">${escapeHtml(review.text)}</p>
         </div>
-        <span style="color: #999; font-size: 14px;">${review.date}</span>
-      </div>
-      <p style="color: #555; line-height: 1.6; margin: 0;">${escapeHtml(review.text)}</p>
+      `).join('')}
     </div>
-  `).join('');
+  `;
 }
 
 function escapeHtml(text) {
@@ -2310,6 +2325,8 @@ function initReviewForm() {
   const stars = document.querySelectorAll('.star-input');
   const ratingInput = document.getElementById('review-rating');
   
+  if (!stars.length || !ratingInput) return;
+  
   stars.forEach(star => {
     star.addEventListener('click', function() {
       const rating = parseInt(this.getAttribute('data-rating'));
@@ -2318,10 +2335,12 @@ function initReviewForm() {
       stars.forEach((s, index) => {
         if (index < rating) {
           s.textContent = '★';
-          s.style.color = '#ffd700';
+          s.style.color = '#fbbf24';
+          s.style.transform = 'scale(1.2)';
+          setTimeout(() => s.style.transform = 'scale(1)', 200);
         } else {
           s.textContent = '☆';
-          s.style.color = '#ddd';
+          s.style.color = '#e2e8f0';
         }
       });
     });
@@ -2330,20 +2349,22 @@ function initReviewForm() {
       const rating = parseInt(this.getAttribute('data-rating'));
       stars.forEach((s, index) => {
         if (index < rating) {
-          s.style.color = '#ffd700';
+          s.style.color = '#fbbf24';
+          s.style.transform = 'scale(1.15)';
         }
       });
     });
-  });
-  
-  document.getElementById('review-stars-input').addEventListener('mouseleave', function() {
-    const currentRating = parseInt(ratingInput.value);
-    stars.forEach((s, index) => {
-      if (index < currentRating) {
-        s.style.color = '#ffd700';
-      } else {
-        s.style.color = '#ddd';
-      }
+    
+    star.addEventListener('mouseleave', function() {
+      const currentRating = parseInt(ratingInput.value);
+      stars.forEach((s, index) => {
+        if (index < currentRating) {
+          s.style.color = '#fbbf24';
+        } else {
+          s.style.color = '#e2e8f0';
+        }
+        s.style.transform = 'scale(1)';
+      });
     });
   });
   
@@ -2358,7 +2379,7 @@ function initReviewForm() {
       const text = document.getElementById('review-text').value;
       
       if (!rating) {
-        alert('Veuillez sélectionner une note');
+        alert('Veuillez sélectionner une note en cliquant sur les étoiles');
         return;
       }
       
@@ -2380,17 +2401,25 @@ function initReviewForm() {
       document.getElementById('review-rating').value = '0';
       stars.forEach(s => {
         s.textContent = '☆';
-        s.style.color = '#ddd';
+        s.style.color = '#e2e8f0';
+        s.style.transform = 'scale(1)';
       });
       
       // Recharger les avis
       generateReviews();
       
-      // Message de confirmation
-      alert('Merci pour votre avis ! Il a été publié avec succès.');
+      // Message de confirmation stylé
+      const confirmMsg = document.createElement('div');
+      confirmMsg.innerHTML = `
+        <div style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 32px; border-radius: 12px; box-shadow: 0 10px 40px rgba(102, 126, 234, 0.4); z-index: 10000; animation: slideDown 0.3s ease-out;">
+          <p style="margin: 0; font-weight: 500; font-size: 15px;">✓ Merci ! Votre avis a été publié avec succès</p>
+        </div>
+      `;
+      document.body.appendChild(confirmMsg);
+      setTimeout(() => confirmMsg.remove(), 3000);
       
       // Scroller vers les avis
-      document.getElementById('reviews-display').scrollIntoView({ behavior: 'smooth' });
+      document.getElementById('reviews-display').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   }
 }
