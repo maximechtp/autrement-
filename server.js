@@ -43,6 +43,7 @@ const clashAcceptances = new Map();
 
 // Stockage des avis clients (partagé entre tous les utilisateurs)
 // Structure: [{ name, rating, text, date, timestamp }, ...]
+// Les avis seront ajoutés par les vrais utilisateurs via le formulaire
 const reviews = [];
 
 // Génère un ID unique pour chaque client
