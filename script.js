@@ -2454,20 +2454,39 @@ function initReviewForm() {
         return;
       }
       
+      // Vérifier que l'utilisateur est connecté
+      if (!sessionData.isLoggedIn || !sessionData.email) {
+        alert('⚠️ Vous devez être connecté pour laisser un avis');
+        closeReviewModal();
+        goTo('eleve'); // Rediriger vers la page de connexion
+        return;
+      }
+      
       try {
-        // Envoyer l'avis au serveur
+        // Envoyer l'avis au serveur avec l'email de l'utilisateur
         const response = await fetch(`${API_BASE_URL}/api/reviews`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ name, rating, text })
+          body: JSON.stringify({ 
+            name, 
+            email: sessionData.email, // Inclure l'email pour identifier l'utilisateur
+            rating, 
+            text 
+          })
         });
         
         const data = await response.json();
         
         if (!data.success) {
-          throw new Error(data.error || 'Erreur lors de l\'envoi de l\'avis');
+          // Afficher le message d'erreur du serveur (par ex: déjà laissé un avis)
+          alert(data.error || 'Erreur lors de l\'envoi de l\'avis');
+          if (response.status === 409) {
+            // L'utilisateur a déjà laissé un avis, fermer la modale
+            closeReviewModal();
+          }
+          return;
         }
         
         // Réinitialiser le formulaire
@@ -2534,7 +2553,28 @@ function showGoogleReviewPrompt() {
 }
 
 // Fonctions pour gérer la modale d'avis
-function openReviewModal() {
+async function openReviewModal() {
+  // Vérifier que l'utilisateur est connecté
+  if (!sessionData.isLoggedIn || !sessionData.email) {
+    alert('⚠️ Vous devez être connecté pour laisser un avis');
+    goTo('eleve'); // Rediriger vers la page de connexion
+    return;
+  }
+  
+  // Vérifier si l'utilisateur a déjà laissé un avis
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/reviews/check/${encodeURIComponent(sessionData.email)}`);
+    const data = await response.json();
+    
+    if (data.success && data.hasReviewed) {
+      alert('✅ Vous avez déjà laissé un avis. Merci pour votre participation !');
+      return;
+    }
+  } catch (error) {
+    console.error('Erreur lors de la vérification de l\'avis:', error);
+    // Continuer même en cas d'erreur réseau
+  }
+  
   const modal = document.getElementById('review-modal');
   if (modal) {
     modal.style.display = 'flex';

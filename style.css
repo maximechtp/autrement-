@@ -1580,6 +1580,35 @@ h1 {
   font-weight: 600;
 }
 
+/* Conteneur des avis avec scroll */
+#reviews-display {
+  max-height: 600px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: #667eea #f0f0f0;
+}
+
+/* Style du scrollbar pour Chrome/Safari */
+#reviews-display::-webkit-scrollbar {
+  width: 8px;
+}
+
+#reviews-display::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 10px;
+}
+
+#reviews-display::-webkit-scrollbar-thumb {
+  background: #667eea;
+  border-radius: 10px;
+}
+
+#reviews-display::-webkit-scrollbar-thumb:hover {
+  background: #5568d3;
+}
+
 .review-card {
   background: white;
   border-radius: 15px;

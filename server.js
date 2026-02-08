@@ -51,8 +51,8 @@ const availableTeachers = new Map();
 const clashAcceptances = new Map();
 
 // Stockage des avis clients (partagé entre tous les utilisateurs)
-// Structure: [{ name, rating, text, date, timestamp }, ...]
-// Les avis seront ajoutés par les vrais utilisateurs via le formulaire
+// Structure: [{ name, email, rating, text, date, timestamp }, ...]
+// Un utilisateur (identifié par email) ne peut laisser qu'un seul avis
 const reviews = [];
 
 // Génère un ID unique pour chaque client
@@ -923,21 +923,33 @@ setInterval(() => {
 // ============== ENDPOINTS API REST POUR LES AVIS ==============
 
 /**
- * GET /api/reviews - Récupérer tous les avis
+ * GET /api/reviews - Récupérer tous les avis (sans les emails pour la confidentialité)
  */
 app.get('/api/reviews', (req, res) => {
   console.log('📖 Requête GET /api/reviews - Récupération des avis');
-  res.json({ success: true, reviews: reviews });
+  // Ne pas exposer les emails publiquement
+  const publicReviews = reviews.map(({ email, ...review }) => review);
+  res.json({ success: true, reviews: publicReviews });
+});
+
+/**
+ * GET /api/reviews/check/:email - Vérifier si un utilisateur a déjà laissé un avis
+ */
+app.get('/api/reviews/check/:email', (req, res) => {
+  const email = req.params.email;
+  const hasReviewed = reviews.some(r => r.email === email);
+  console.log(`🔍 Vérification avis pour ${email}: ${hasReviewed ? 'Déjà laissé' : 'Pas encore'}`);
+  res.json({ success: true, hasReviewed: hasReviewed });
 });
 
 /**
  * POST /api/reviews - Ajouter un nouvel avis
  */
 app.post('/api/reviews', (req, res) => {
-  const { name, rating, text } = req.body;
+  const { name, email, rating, text } = req.body;
   
   // Validation
-  if (!name || !rating || !text) {
+  if (!name || !email || !rating || !text) {
     console.log('❌ Avis invalide: données manquantes');
     return res.status(400).json({ success: false, error: 'Données manquantes' });
   }
@@ -947,9 +959,20 @@ app.post('/api/reviews', (req, res) => {
     return res.status(400).json({ success: false, error: 'La note doit être entre 1 et 5' });
   }
   
+  // Vérifier si l'utilisateur a déjà laissé un avis
+  const existingReview = reviews.find(r => r.email === email);
+  if (existingReview) {
+    console.log(`⚠️ L'utilisateur ${email} a déjà laissé un avis`);
+    return res.status(409).json({ 
+      success: false, 
+      error: 'Vous avez déjà laissé un avis. Merci pour votre participation !' 
+    });
+  }
+  
   // Créer l'avis
   const review = {
     name: name,
+    email: email, // Stocker l'email (ne sera pas affiché publiquement)
     rating: rating,
     text: text,
     date: new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
