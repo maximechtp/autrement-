@@ -4,8 +4,10 @@ const http = require('http');
 const cors = require('cors');
 
 // Configuration des ports
-const WS_PORT = process.env.PORT || 8080;
-const HTTP_PORT = process.env.HTTP_PORT || 3000;
+// Sur Railway, process.env.PORT est utilisé pour le serveur HTTP principal
+// En local, on utilise des ports différents
+const PORT = process.env.PORT || 8080;
+const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
 
 // Configuration du serveur HTTP pour les API REST
 const app = express();
@@ -15,15 +17,22 @@ app.use(express.json());
 const httpServer = http.createServer(app);
 
 // Configuration du serveur WebSocket
-const PORT = WS_PORT;
-const wss = new WebSocket.Server({ 
-  port: PORT,
-  // Permet les connexions cross-origin (nécessaire pour HTTPS → WS)
-  verifyClient: (info) => {
-    console.log(`📥 Nouvelle tentative de connexion depuis: ${info.origin || 'Origine inconnue'}`);
-    return true; // Accepter toutes les connexions (ajustez selon vos besoins)
-  }
-});
+// En production (Railway), WebSocket et HTTP partagent le même serveur
+// En local, WebSocket a son propre port
+let wss;
+if (isProduction) {
+  wss = new WebSocket.Server({ server: httpServer });
+  console.log('🔧 Mode Production: WebSocket attaché au serveur HTTP');
+} else {
+  wss = new WebSocket.Server({ 
+    port: PORT,
+    verifyClient: (info) => {
+      console.log(`📥 Nouvelle tentative de connexion depuis: ${info.origin || 'Origine inconnue'}`);
+      return true;
+    }
+  });
+  console.log('🔧 Mode Développement: WebSocket sur port séparé');
+}
 
 // Stockage des utilisateurs connectés en mémoire
 // Structure: { clientId: { ws, name, lat, lng, timestamp, email, prenom, nom } }
@@ -957,14 +966,14 @@ app.post('/api/reviews', (req, res) => {
 });
 
 // Démarrer le serveur HTTP
-httpServer.listen(HTTP_PORT, () => {
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log('═══════════════════════════════════════════════════════════');
   console.log('║   🚀 SERVEUR LOK IN DÉMARRÉ                  ║');
   console.log('═══════════════════════════════════════════════════════════');
   console.log('');
-  console.log(`🌐 Port HTTP (API REST): ${HTTP_PORT}`);
-  console.log(`🌐 Port WebSocket: ${PORT}`);
-  console.log(`🌐 Protocol: ws:// (local) / wss:// (production)`);
+  console.log(`🌐 Port: ${PORT}`);
+  console.log(`🌐 Environment: ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}`);
+  console.log(`🌐 WebSocket: ${isProduction ? 'Partagé avec HTTP' : 'Port séparé'}`);
   console.log(`⏰ Démarré le: ${new Date().toLocaleString('fr-FR')}`);
   console.log('');
   console.log('📊 Statistiques:');
