@@ -1,5 +1,20 @@
 console.log("Script loaded");
 
+// Configuration de l'API REST
+const API_BASE_URL = (() => {
+  const hostname = window.location.hostname;
+  
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || window.location.protocol === 'file:') {
+    // Développement local
+    return 'http://localhost:3000';
+  } else {
+    // Production : serveur déployé sur Railway
+    return 'https://web-production-d08b0.up.railway.app';
+  }
+})();
+
+console.log('🌐 API Base URL:', API_BASE_URL);
+
 // Store current session data
 let sessionData = {
   option: null,
@@ -2311,7 +2326,7 @@ async function generateReviews() {
   
   try {
     // Récupérer les avis depuis le serveur
-    const response = await fetch('http://localhost:3000/api/reviews');
+    const response = await fetch(`${API_BASE_URL}/api/reviews`);
     const data = await response.json();
     
     if (!data.success) {
@@ -2441,7 +2456,7 @@ function initReviewForm() {
       
       try {
         // Envoyer l'avis au serveur
-        const response = await fetch('http://localhost:3000/api/reviews', {
+        const response = await fetch(`${API_BASE_URL}/api/reviews`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
