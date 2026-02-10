@@ -2,12 +2,17 @@ const WebSocket = require('ws');
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 
 // Configuration des ports
 // Sur Railway, process.env.PORT est utilisé pour le serveur HTTP principal
 // En local, on utilise des ports différents
 const PORT = process.env.PORT || 8080;
 const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
+
+// Fichier de persistence pour les avis
+const REVIEWS_FILE = path.join(__dirname, 'reviews.json');
 
 // Configuration du serveur HTTP pour les API REST
 const app = express();
@@ -53,7 +58,36 @@ const clashAcceptances = new Map();
 // Stockage des avis clients (partagé entre tous les utilisateurs)
 // Structure: [{ name, email, rating, text, date, timestamp }, ...]
 // Un utilisateur (identifié par email) ne peut laisser qu'un seul avis
-const reviews = [];
+let reviews = [];
+
+// Charger les avis depuis le fichier au démarrage
+function loadReviews() {
+  try {
+    if (fs.existsSync(REVIEWS_FILE)) {
+      const data = fs.readFileSync(REVIEWS_FILE, 'utf8');
+      reviews = JSON.parse(data);
+      console.log(`✅ ${reviews.length} avis chargés depuis le fichier`);
+    } else {
+      console.log('📝 Aucun fichier d\'avis trouvé, démarrage avec une liste vide');
+    }
+  } catch (error) {
+    console.error('❌ Erreur lors du chargement des avis:', error);
+    reviews = [];
+  }
+}
+
+// Sauvegarder les avis dans le fichier
+function saveReviews() {
+  try {
+    fs.writeFileSync(REVIEWS_FILE, JSON.stringify(reviews, null, 2), 'utf8');
+    console.log(`💾 ${reviews.length} avis sauvegardés dans le fichier`);
+  } catch (error) {
+    console.error('❌ Erreur lors de la sauvegarde des avis:', error);
+  }
+}
+
+// Charger les avis au démarrage du serveur
+loadReviews();
 
 // Génère un ID unique pour chaque client
 function generateClientId() {
@@ -981,6 +1015,9 @@ app.post('/api/reviews', (req, res) => {
   
   // Ajouter en début de liste
   reviews.unshift(review);
+  
+  // Sauvegarder immédiatement dans le fichier
+  saveReviews();
   
   console.log(`✅ Nouvel avis ajouté: ${name} - ${rating}★`);
   console.log(`   Total avis: ${reviews.length}`);
