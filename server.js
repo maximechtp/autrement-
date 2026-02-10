@@ -11,8 +11,12 @@ const path = require('path');
 const PORT = process.env.PORT || 8080;
 const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
 
-// Fichier de persistence pour les avis
+// Fichiers de persistence
 const REVIEWS_FILE = path.join(__dirname, 'reviews.json');
+const USERS_FILE = path.join(__dirname, 'users.json');
+
+// Configuration Stripe
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 // Configuration du serveur HTTP pour les API REST
 const app = express();
@@ -88,6 +92,39 @@ function saveReviews() {
 
 // Charger les avis au démarrage du serveur
 loadReviews();
+
+// Stockage des utilisateurs (partagé entre tous les utilisateurs)
+// Structure: { email: { email, prenom, nom, subscription, ... }, ... }
+let users = {};
+
+// Charger les utilisateurs depuis le fichier au démarrage
+function loadUsers() {
+  try {
+    if (fs.existsSync(USERS_FILE)) {
+      const data = fs.readFileSync(USERS_FILE, 'utf8');
+      users = JSON.parse(data);
+      console.log(`✅ ${Object.keys(users).length} utilisateurs chargés depuis le fichier`);
+    } else {
+      console.log('📝 Aucun fichier utilisateur trouvé, démarrage avec une liste vide');
+    }
+  } catch (error) {
+    console.error('❌ Erreur lors du chargement des utilisateurs:', error);
+    users = {};
+  }
+}
+
+// Sauvegarder les utilisateurs dans le fichier
+function saveUsers() {
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+    console.log(`💾 ${Object.keys(users).length} utilisateurs sauvegardés dans le fichier`);
+  } catch (error) {
+    console.error('❌ Erreur lors de la sauvegarde des utilisateurs:', error);
+  }
+}
+
+// Charger les utilisateurs au démarrage
+loadUsers();
 
 // Génère un ID unique pour chaque client
 function generateClientId() {
@@ -953,6 +990,188 @@ setInterval(() => {
     }
   });
 }, 30000);
+
+// ============== ENDPOINT WEBHOOK STRIPE ==============
+
+/**
+ * POST /api/stripe-webhook - Webhook pour recevoir les événements Stripe
+ * Utilise express.raw() pour le body car Stripe a besoin du body brut pour vérifier la signature
+ */
+app.post('/api/stripe-webhook', express.raw({type: 'application/json'}), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  
+  console.log('📥 Webhook Stripe reçu');
+
+  let event;
+
+  try {
+    // Vérifier la signature Stripe
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+    console.log('✅ Signature Stripe vérifiée');
+  } catch (err) {
+    console.error('❌ Erreur de vérification de signature:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  console.log('📋 Type d\'événement:', event.type);
+
+  // Gérer les différents types d'événements
+  try {
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object;
+        
+        // Récupérer les informations importantes
+        const customerEmail = session.customer_email || session.customer_details?.email;
+        const subscriptionId = session.subscription;
+        const customerId = session.customer;
+        const amountTotal = session.amount_total / 100;
+        const currency = session.currency.toUpperCase();
+        const planType = session.metadata?.planType || 'standard';
+        
+        console.log('════════════════════════════════════════');
+        console.log('🎉 NOUVEAU PAIEMENT RÉUSSI !');
+        console.log('════════════════════════════════════════');
+        console.log(`📧 Email: ${customerEmail}`);
+        console.log(`📦 Plan: ${planType.toUpperCase()}`);
+        console.log(`💰 Montant: ${amountTotal} ${currency}`);
+        console.log(`🔑 Customer ID: ${customerId}`);
+        console.log(`🔑 Subscription ID: ${subscriptionId}`);
+        console.log('════════════════════════════════════════');
+
+        // Mettre à jour l'utilisateur
+        if (!users[customerEmail]) {
+          users[customerEmail] = {
+            email: customerEmail,
+            createdAt: new Date().toISOString()
+          };
+        }
+
+        users[customerEmail].subscription = {
+          type: planType,
+          isActive: true,
+          startDate: new Date().toISOString(),
+          stripeCustomerId: customerId,
+          stripeSubscriptionId: subscriptionId,
+          status: 'active'
+        };
+        users[customerEmail].updatedAt = new Date().toISOString();
+
+        // Sauvegarder
+        saveUsers();
+        
+        console.log(`✅ Abonnement ${planType.toUpperCase()} activé pour ${customerEmail}`);
+        break;
+      }
+
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object;
+        const customerEmail = subscription.metadata?.email;
+        
+        console.log('🔄 Abonnement mis à jour:', subscription.id);
+        
+        if (customerEmail && users[customerEmail]) {
+          users[customerEmail].subscription.status = subscription.status;
+          users[customerEmail].updatedAt = new Date().toISOString();
+          saveUsers();
+          console.log(`✅ Statut d'abonnement mis à jour pour ${customerEmail}: ${subscription.status}`);
+        }
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
+        const subscription = event.data.object;
+        const customerEmail = subscription.metadata?.email;
+        
+        console.log('❌ Abonnement annulé:', subscription.id);
+        
+        if (customerEmail && users[customerEmail]) {
+          users[customerEmail].subscription.isActive = false;
+          users[customerEmail].subscription.status = 'canceled';
+          users[customerEmail].updatedAt = new Date().toISOString();
+          saveUsers();
+          console.log(`✅ Abonnement désactivé pour ${customerEmail}`);
+        }
+        break;
+      }
+
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object;
+        console.log('⚠️ Paiement échoué:', invoice.id);
+        // TODO: Notifier l'utilisateur
+        break;
+      }
+
+      default:
+        console.log(`ℹ️ Événement non géré: ${event.type}`);
+    }
+
+    // Toujours retourner 200 pour confirmer la réception
+    res.json({ received: true, eventType: event.type });
+
+  } catch (error) {
+    console.error('❌ Erreur lors du traitement de l\'événement:', error);
+    res.status(500).json({ error: 'Erreur de traitement' });
+  }
+});
+
+// ============== ENDPOINTS API REST POUR LES UTILISATEURS ==============
+
+/**
+ * GET /api/user/:email - Récupérer les informations d'un utilisateur
+ */
+app.get('/api/user/:email', (req, res) => {
+  const email = req.params.email.toLowerCase();
+  const user = users[email];
+  
+  if (user) {
+    console.log(`📖 Utilisateur trouvé: ${email}`);
+    res.json({ success: true, user: user });
+  } else {
+    console.log(`❌ Utilisateur non trouvé: ${email}`);
+    res.json({ success: false, user: null });
+  }
+});
+
+/**
+ * POST /api/user - Créer ou mettre à jour un utilisateur
+ */
+app.post('/api/user', (req, res) => {
+  const { email, prenom, nom, classe, isTeacher } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({ success: false, error: 'Email requis' });
+  }
+  
+  const emailLower = email.toLowerCase();
+  
+  if (!users[emailLower]) {
+    users[emailLower] = {
+      email: emailLower,
+      createdAt: new Date().toISOString(),
+      subscription: {
+        type: null,
+        isActive: false
+      }
+    };
+  }
+  
+  // Mettre à jour les informations
+  if (prenom) users[emailLower].prenom = prenom;
+  if (nom) users[emailLower].nom = nom;
+  if (classe) users[emailLower].classe = classe;
+  if (typeof isTeacher !== 'undefined') users[emailLower].isTeacher = isTeacher;
+  users[emailLower].updatedAt = new Date().toISOString();
+  
+  saveUsers();
+  
+  console.log(`✅ Utilisateur sauvegardé: ${emailLower}`);
+  res.json({ success: true, user: users[emailLower] });
+});
 
 // ============== ENDPOINTS API REST POUR LES AVIS ==============
 

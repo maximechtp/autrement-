@@ -4,3 +4,4 @@ node_modules/
 .env
 .env.local
 reviews.json
+users.json

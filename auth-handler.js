@@ -6,6 +6,44 @@
 // Variables globales pour l'authentification
 let currentAccountType = 'eleve'; // 'eleve' ou 'professeur'
 
+// ===== SUBSCRIPTION SYNC =====
+
+/**
+ * Synchronise le statut d'abonnement avec le serveur
+ */
+async function syncSubscriptionStatus(email) {
+  if (!email) return false;
+  
+  try {
+    console.log('🔄 Synchronisation du statut d\'abonnement pour:', email);
+    const response = await fetch(`${API_BASE_URL}/api/user/${encodeURIComponent(email)}`);
+    const data = await response.json();
+    
+    if (data.success && data.user && data.user.subscription) {
+      const sub = data.user.subscription;
+      
+      // Mettre à jour sessionData
+      sessionData.isSubscribed = sub.isActive || false;
+      sessionData.subscriptionType = sub.type || null;
+      
+      // Mettre à jour localStorage
+      const user = userDB.getUserByEmail(email);
+      if (user) {
+        user.subscription = sub;
+        await userDB.saveUser(user);
+      }
+      
+      console.log(`✅ Abonnement synchronisé: ${sub.isActive ? 'Actif' : 'Inactif'} (${sub.type || 'aucun'})`);
+      return sub.isActive;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('❌ Erreur synchronisation abonnement:', error);
+    return false;
+  }
+}
+
 // ===== MODAL MANAGEMENT =====
 
 function openModal(modalId) {
@@ -361,6 +399,9 @@ async function handleLoginSubmit(event, accountType) {
       sessionData.isSubscribed = user.subscription.isActive;
       sessionData.subscriptionType = user.subscription.type;
       sessionData.usageCount = getUsageData(user.email);
+      
+      // Synchroniser l'abonnement avec le serveur
+      await syncSubscriptionStatus(user.email);
       
       // Sauvegarder la session
       saveSessionToStorage();
