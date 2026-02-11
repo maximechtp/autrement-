@@ -5,8 +5,8 @@
 
 // Configuration Stripe
 const STRIPE_CONFIG = {
-  // Remplacez par votre clé publique Stripe
-  publishableKey: 'pk_live_VOTRE_CLE_PUBLIQUE',
+  // Clé publique Stripe LIVE
+  publishableKey: 'pk_live_51SvQ9m4Dwp574x5qvVuKdLpSWwyTOxxOZY2IoZDiJsJDh1123pL8iIOKz4EzkCPkUcUWC68FLdKaeCHkcRfehKyR00xWotLUEU',
   
   // Prix IDs de vos produits Stripe
   prices: {
