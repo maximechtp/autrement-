@@ -27,20 +27,13 @@ const httpServer = http.createServer(app);
 
 // Configuration du serveur WebSocket
 // En production (Railway), WebSocket et HTTP partagent le même serveur
-// En local, WebSocket a son propre port
-let wss;
+// En local, HTTP et WebSocket partagent aussi le même serveur pour éviter les conflits
+wss = new WebSocket.Server({ server: httpServer });
+
 if (isProduction) {
-  wss = new WebSocket.Server({ server: httpServer });
   console.log('🔧 Mode Production: WebSocket attaché au serveur HTTP');
 } else {
-  wss = new WebSocket.Server({ 
-    port: PORT,
-    verifyClient: (info) => {
-      console.log(`📥 Nouvelle tentative de connexion depuis: ${info.origin || 'Origine inconnue'}`);
-      return true;
-    }
-  });
-  console.log('🔧 Mode Développement: WebSocket sur port séparé');
+  console.log('🔧 Mode Développement: WebSocket attaché au serveur HTTP');
 }
 
 // Stockage des utilisateurs connectés en mémoire
@@ -399,6 +392,11 @@ function handleStartSearch(clientId, message) {
         continue;
       }
       
+      // S'assurer que matchedUser a searchLanguages défini (compatibilité)
+      if (!matchedUser.searchLanguages || matchedUser.searchLanguages.length === 0) {
+        matchedUser.searchLanguages = [matchedUser.searchLanguage || userLang];
+      }
+      
       // Vérifier s'il y a une langue en commun
       const commonLanguages = user.searchLanguages.filter(lang => 
         matchedUser.searchLanguages.includes(lang)
@@ -510,12 +508,11 @@ function handleStartSearch(clientId, message) {
       if (!queue.includes(clientId)) {
         queue.push(clientId);
       }
+      // Envoyer la mise à jour pour chaque file
+      broadcastQueueStatus(queueKey);
     }
     console.log(`⏳ ${user.name} ajouté aux files d'attente pour: ${user.searchLanguages.join(', ')}`);
   }
-  
-  // Envoyer la mise à jour de la file d'attente
-  broadcastQueueStatus(queueKey);
 }
 
 /**
@@ -551,6 +548,7 @@ function handleStopSearch(clientId) {
   user.isSearching = false;
   user.searchType = null;
   user.searchLanguage = null;
+  user.searchLanguages = [];
   user.searchMatiere = null;
   user.searchNiveau = null;
   
@@ -566,19 +564,26 @@ function handleStopSearch(clientId) {
  * Retire un utilisateur de sa file d'attente
  */
 function removeFromQueue(clientId, user) {
-  if (!user.searchType || !user.searchLanguage) return;
+  if (!user.searchType) return;
   
-  const queueKey = `${user.searchType}:${user.searchLanguage}`;
-  const queue = matchingQueues.get(queueKey);
+  // Retirer de toutes les files d'attente pour toutes les langues
+  const languages = user.searchLanguages || [user.searchLanguage];
   
-  if (queue) {
-    const index = queue.indexOf(clientId);
-    if (index > -1) {
-      queue.splice(index, 1);
-      console.log(`➖ ${clientId} retiré de la file ${queueKey} (${queue.length} restants)`);
-      broadcastQueueStatus(queueKey);
+  languages.forEach(lang => {
+    if (!lang) return;
+    
+    const queueKey = `${user.searchType}:${lang}`;
+    const queue = matchingQueues.get(queueKey);
+    
+    if (queue) {
+      const index = queue.indexOf(clientId);
+      if (index > -1) {
+        queue.splice(index, 1);
+        console.log(`➖ ${clientId} retiré de la file ${queueKey} (${queue.length} restants)`);
+        broadcastQueueStatus(queueKey);
+      }
     }
-  }
+  });
 }
 
 /**
