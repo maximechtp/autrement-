@@ -1807,8 +1807,13 @@ function openClashMeetWithQuestion() {
   // Aller à la page d'appel
   goTo("call");
   
-  // Ouvrir automatiquement le lien Google Meet dans un nouvel onglet
+  // Définir le lien du bouton "Rejoindre la visio"
   if (sessionData.meetLink) {
+    document.getElementById("meet-link").href = sessionData.meetLink;
+    document.getElementById("meet-info").textContent = `ID: ${sessionData.meetId || 'N/A'}`;
+    console.log('🔗 Lien Meet assigné au bouton:', sessionData.meetLink);
+    
+    // Ouvrir automatiquement le lien Google Meet dans un nouvel onglet
     console.log('🔗 Ouverture automatique du lien Google Meet:', sessionData.meetLink);
     window.open(sessionData.meetLink, '_blank');
   } else {
@@ -2100,10 +2105,11 @@ function showClashMatch() {
   // Langue
   document.getElementById('clash-language-type').textContent = sessionData.langue || 'Non spécifiée';
   
-  // Générer une question de débat aléatoire
-  const debateQuestion = getRandomDebateQuestion();
-  sessionData.debateQuestion = debateQuestion;
+  // Utiliser la question de débat reçue du serveur (déjà stockée dans sessionData.debateQuestion)
+  const debateQuestion = sessionData.debateQuestion;
   document.getElementById('clash-debate-question').textContent = debateQuestion;
+  
+  console.log('📝 Affichage de la question de débat:', debateQuestion);
   
   // Récupérer les vraies stats depuis la base de données
   getRealPartnerStats(partnerEmail).then(stats => {
@@ -2130,8 +2136,7 @@ function acceptClashMatch() {
     ws.send(JSON.stringify({
       type: 'clashAccepted',
       matchId: sessionData.matchId,
-      email: sessionData.email,
-      debateQuestion: sessionData.debateQuestion
+      email: sessionData.email
     }));
     
     console.log('📤 Envoi de l\'acceptation du Clash au serveur');
@@ -2214,9 +2219,16 @@ function openClashMeetWithQuestion() {
   // Aller à la page d'appel
   goTo("call");
   
-  // Ouvrir automatiquement le lien Google Meet dans un nouvel onglet
+  // Définir le lien du bouton "Rejoindre la visio"
   if (sessionData.meetLink) {
+    document.getElementById("meet-link").href = sessionData.meetLink;
+    document.getElementById("meet-info").textContent = `ID: ${sessionData.meetId || 'N/A'}`;
+    console.log('🔗 Lien Meet assigné au bouton:', sessionData.meetLink);
+    
+    // Ouvrir automatiquement le lien Google Meet dans un nouvel onglet
     window.open(sessionData.meetLink, '_blank');
+  } else {
+    console.error('❌ Aucun lien Google Meet disponible');
   }
 }
 
@@ -3130,6 +3142,12 @@ function connectWebSocket() {
             sessionData.matchId = data.matchId; // Important pour le Clash
             sessionData.matiere = data.matiere || sessionData.matiere;
             sessionData.niveau = data.niveau || sessionData.niveau;
+            
+            // Stocker la question de débat si c'est un Clash (générée par le serveur)
+            if (data.debateQuestion) {
+              sessionData.debateQuestion = data.debateQuestion;
+              console.log('💬 Question de débat reçue du serveur:', data.debateQuestion);
+            }
             
             // Afficher le profil du partenaire trouvé
             if (sessionData.partnerIsTeacher || sessionData.option === 'cours') {

@@ -44,6 +44,45 @@ const connectedUsers = new Map();
 // Structure: { 'debat:Français': [clientId1, clientId2, ...], 'chat:Anglais': [...], ... }
 const matchingQueues = new Map();
 
+// Questions de débat pour les Clash
+const CLASH_DEBATE_QUESTIONS = [
+  "Les réseaux sociaux font-ils plus de mal que de bien aux jeunes ?",
+  "Faut-il interdire les smartphones dans les écoles ?",
+  "L'intelligence artificielle est-elle une menace pour l'humanité ?",
+  "Devrait-on légaliser le cannabis à des fins récréatives ?",
+  "Le nucléaire est-il une solution viable contre le réchauffement climatique ?",
+  "Faut-il rendre le vote obligatoire ?",
+  "Les jeux vidéo rendent-ils violents ?",
+  "L'argent fait-il le bonheur ?",
+  "Faut-il supprimer les notes à l'école ?",
+  "Le télétravail est-il meilleur pour la productivité ?",
+  "Devrait-on réduire la semaine de travail à 4 jours ?",
+  "Les influenceurs ont-ils une responsabilité sociale ?",
+  "Faut-il interdire les voitures en centre-ville ?",
+  "Le sport professionnel est-il trop commercialisé ?",
+  "L'exploration spatiale est-elle une priorité pour l'humanité ?",
+  "Faut-il légaliser l'euthanasie ?",
+  "Les animaux devraient-ils avoir des droits juridiques ?",
+  "Le veganisme est-il la solution pour sauver la planète ?",
+  "Faut-il limiter le temps d'écran des enfants par la loi ?",
+  "La célébrité sur internet est-elle une vraie carrière ?",
+  "L'école prépare-t-elle vraiment à la vie professionnelle ?",
+  "Faut-il interdire la corrida ?",
+  "Le streaming musical tue-t-il l'industrie musicale ?",
+  "Les réseaux sociaux devraient-ils vérifier l'âge de leurs utilisateurs ?",
+  "Faut-il taxer davantage les grandes fortunes ?",
+  "Le patriotisme est-il encore d'actualité ?",
+  "Les parents devraient-ils pouvoir choisir le sexe de leur enfant ?",
+  "Faut-il rendre l'école obligatoire jusqu'à 18 ans ?",
+  "La fast fashion est-elle un fléau écologique ?",
+  "Les cryptomonnaies sont-elles l'avenir de la finance ?"
+];
+
+function getRandomDebateQuestion() {
+  const randomIndex = Math.floor(Math.random() * CLASH_DEBATE_QUESTIONS.length);
+  return CLASH_DEBATE_QUESTIONS[randomIndex];
+}
+
 // Professeurs disponibles par matière
 // Structure: { 'Mathématiques': [clientId1, clientId2, ...], 'Français': [...], ... }
 const availableTeachers = new Map();
@@ -418,28 +457,34 @@ function handleStartSearch(clientId, message) {
         console.log(`✅ Match trouvé ! ${user.name} ↔️ ${matchedUser.name} (langue(s) commune(s): ${commonLangsText})`);
         console.log(`📹 Google Meet créé: ${meetLink}`);
         
-        // Si c'est un Clash (debat), initialiser le système d'acceptation mutuelle
+        // Si c'est un Clash (debat), initialiser le système d'acceptation mutuelle et générer la question
+        let debateQuestion = null;
         if (searchType === 'debat') {
+          // Générer UNE SEULE question de débat pour les deux participants
+          debateQuestion = getRandomDebateQuestion();
+          
           clashAcceptances.set(matchIdUnique, {
             user1: clientId,
             user2: matchedClientId,
             user1Accepted: false,
             user2Accepted: false,
-            debateQuestion: null,
+            debateQuestion: debateQuestion,
             meetLink: meetLink,
             meetId: meetId,
             timestamp: Date.now()
           });
           
           console.log(`🔥 Clash initialisé avec matchId: ${matchIdUnique}`);
+          console.log(`💬 Question de débat: "${debateQuestion}"`);
         }
         
-        // Envoyer le match aux deux utilisateurs
+        // Envoyer le match aux deux utilisateurs (avec la question si c'est un Clash)
         const matchData = {
           type: 'matchFound',
           meetLink: meetLink,
           meetId: meetId,
           matchId: matchIdUnique,
+          debateQuestion: debateQuestion,
           partner: {
             name: matchedUser.name,
             prenom: matchedUser.prenom,
@@ -454,6 +499,7 @@ function handleStartSearch(clientId, message) {
           meetLink: meetLink,
           meetId: meetId,
           matchId: matchIdUnique,
+          debateQuestion: debateQuestion,
           partner: {
             name: user.name,
             prenom: user.prenom,
@@ -879,10 +925,7 @@ function handleClashAccepted(clientId, message) {
     console.log(`✅ User2 (${user.name}) a accepté le Clash`);
   }
   
-  // Stocker la question de débat (la première reçue)
-  if (!clashData.debateQuestion && debateQuestion) {
-    clashData.debateQuestion = debateQuestion;
-  }
+  // La question de débat a déjà été générée lors du match, on ne l'écrase pas
 
   // Vérifier si les deux ont accepté
   if (clashData.user1Accepted && clashData.user2Accepted) {
