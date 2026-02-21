@@ -58,7 +58,8 @@
         if (!roomId) {
             document.getElementById('loading').innerHTML = '<h1>Erreur: Pas de salle spécifiée</h1>';
         } else {
-            // Configuration Jitsi sans modération
+            // Configuration Jitsi - utiliser meet.jit.si qui supporte des salles illimitées
+            // Note: chaque salle a un nom unique, donc infinité de salles simultanées possible
             const domain = 'meet.jit.si';
             const options = {
                 roomName: `lokin-${roomId}`,
@@ -80,6 +81,14 @@
                     // Désactiver les fonctionnalités de modération
                     disableRemoteMute: true,
                     enableNoisyMicDetection: false,
+                    
+                    // Qualité maximale pour éviter les déconnexions
+                    resolution: 720,
+                    constraints: {
+                        video: {
+                            height: { ideal: 720, max: 1080, min: 480 }
+                        }
+                    },
                     
                     // Interface simplifiée
                     hideConferenceSubject: false,

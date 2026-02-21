@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salle de visio - LOK IN</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            text-align: center;
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 32px;
+        }
+        p {
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        .room-info {
+            background: #f7f7f7;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .room-info strong {
+            color: #667eea;
+            display: block;
+            margin-bottom: 10px;
+        }
+        .room-code {
+            font-size: 24px;
+            font-weight: bold;
+            color: #764ba2;
+            letter-spacing: 2px;
+        }
+        .btn-join {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-join:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        .loading {
+            display: none;
+            margin-top: 20px;
+        }
+        .spinner {
+            border: 4px solid rgba(102, 126, 234, 0.1);
+            border-left-color: #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .info-text {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 Salle de visio LOK IN</h1>
+        <p>Cliquez sur le bouton ci-dessous pour rejoindre votre partenaire dans la salle de visioconférence.</p>
+        
+        <div class="room-info">
+            <strong>Code de la salle :</strong>
+            <div class="room-code" id="room-code">---</div>
+        </div>
+
+        <button class="btn-join" id="join-btn">
+            Rejoindre la visio
+        </button>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 15px;">Ouverture de la salle...</p>
+        </div>
+
+        <p class="info-text">
+            ✅ Pas de limite de temps<br>
+            ✅ Salles illimitées simultanées<br>
+            ✅ Pas besoin d'attendre l'hôte
+        </p>
+    </div>
+
+    <script>
+        // Récupérer le roomId depuis l'URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('room');
+        const userName = urlParams.get('name') || 'Utilisateur';
+
+        if (!roomId) {
+            document.querySelector('.container').innerHTML = '<h1>❌ Erreur</h1><p>Aucune salle spécifiée</p>';
+        } else {
+            // Afficher le code de la salle
+            document.getElementById('room-code').textContent = roomId.toUpperCase();
+
+            // Créer un lien Jitsi Meet avec serveur gratuit
+            // Utilisation de meet.jit.si - chaque salle est unique donc support illimité de salles
+            const jitsiUrl = `https://meet.jit.si/lokin-${roomId}`;
+
+            document.getElementById('join-btn').addEventListener('click', () => {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('join-btn').style.display = 'none';
+                
+                // Ouvrir Jitsi Meet dans la même fenêtre
+                window.location.href = jitsiUrl;
+            });
+        }
+    </script>
+</body>
+</html>

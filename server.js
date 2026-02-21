@@ -446,16 +446,17 @@ function handleStartSearch(clientId, message) {
         queue.splice(i, 1);
         matched = true;
         
-        // Créer une salle Jitsi avec notre intégration personnalisée
+        // Créer une salle unique - Jitsi supporte des salles illimitées simultanées
+        // Chaque roomId est unique donc on peut avoir autant de salles que nécessaire
         const meetId = generateMeetId();
-        const meetLink = `https://lokin.online/jitsi-room.html?room=${meetId}`;
+        const meetLink = `https://meet.jit.si/lokin-${meetId}`;
         
         // Générer un matchId unique pour gérer les acceptations
         const matchIdUnique = `match_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
         const commonLangsText = commonLanguages.join(', ');
         console.log(`✅ Match trouvé ! ${user.name} ↔️ ${matchedUser.name} (langue(s) commune(s): ${commonLangsText})`);
-        console.log(`📹 Google Meet créé: ${meetLink}`);
+        console.log(`📹 Salle créée: ${meetLink} (infinité de salles simultanées possibles)`);
         
         // Si c'est un Clash (debat), initialiser le système d'acceptation mutuelle et générer la question
         let debateQuestion = null;
@@ -834,10 +835,10 @@ function checkForWaitingStudents(matiere) {
  */
 function createTeacherStudentMatch(teacher, teacherClientId, student, studentClientId) {
   const meetId = generateMeetId();
-  const meetLink = `https://lokin.online/jitsi-room.html?room=${meetId}`;
+  const meetLink = `https://meet.jit.si/lokin-${meetId}`;
   
   console.log(`✅ Match trouvé ! Élève: ${student.name} ↔️ Prof: ${teacher.name} (${student.searchMatiere})`);
-  console.log(`📹 Google Meet créé: ${meetLink}`);
+  console.log(`📹 Salle créée: ${meetLink}`);
   
   // Données pour l'élève
   const studentMatchData = {
