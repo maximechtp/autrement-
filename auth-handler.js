@@ -268,7 +268,7 @@ async function handleCreateAccountSubmit(event) {
       
       // Rediriger vers la page appropriée
       if (isTeacher) {
-        goTo('prof');
+        goTo('prof-dashboard');
         requestAnimationFrame(() => {
           if (typeof loadCourseRequests !== 'undefined') {
             loadCourseRequests();
@@ -414,7 +414,7 @@ async function handleLoginSubmit(event, accountType) {
       
       // Rediriger vers la page appropriée
       if (accountType === 'professeur') {
-        goTo('prof');
+        goTo('prof-dashboard');
         requestAnimationFrame(() => {
           if (typeof loadCourseRequests !== 'undefined') {
             loadCourseRequests();

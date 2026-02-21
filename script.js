@@ -305,7 +305,7 @@ function displayTeacherProfile(teacherData) {
   document.getElementById('prof-courses-total').textContent = stats.totalCourses;
   
   // Navigate to prof page
-  goTo('prof');
+  goTo('prof-dashboard');
 }
 
 // Demo function to show a sample teacher profile
@@ -367,7 +367,7 @@ function restoreSessionFromStorage() {
       
       // Rediriger vers la page appropriée
       if (sessionData.isTeacher) {
-        goTo('prof');
+        goTo('prof-dashboard');
         requestAnimationFrame(() => loadCourseRequests());
       } else {
         goTo('eleve-options');
@@ -1092,7 +1092,7 @@ function handleGoogleSignInProfessor(response) {
       
       // Redirection après un court délai pour une transition fluide
       setTimeout(() => {
-        goTo("prof");
+        goTo("prof-dashboard");
       }, 100);
     }).catch(error => {
       console.error('❌ Erreur sauvegarde professeur Google:', error);
@@ -1146,7 +1146,7 @@ function simulateGoogleSignInProfessor() {
     
     saveSessionToStorage();
     updateUserAvatar();
-    goTo("prof");
+    goTo("prof-dashboard");
   });
 }
 
@@ -1343,7 +1343,7 @@ document.addEventListener("DOMContentLoaded", () => {
               }
               // Professeur clique sur "Je suis professeur" - retour à la page prof
               console.log("✅ Redirecting teacher to prof page");
-              goTo("prof");
+              goTo("prof-dashboard");
               // Charger les demandes de cours immédiatement
               requestAnimationFrame(() => loadCourseRequests());
             } else {
@@ -1559,7 +1559,7 @@ document.addEventListener("DOMContentLoaded", () => {
         break;
 
       case "stopProfWaiting":
-        goTo("prof");
+        goTo("prof-dashboard");
         break;
       
       case "toggleMatiere":
