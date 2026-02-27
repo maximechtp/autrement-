@@ -8,6 +8,8 @@
   <link rel="stylesheet" href="style.css?v=4">
   <link rel="stylesheet" href="teacher-styles.css">
   <link rel="stylesheet" href="auth-styles.css">
+  <link rel="stylesheet" href="hover-effects.css">
+  <link rel="stylesheet" href="student-stats.css">
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600;700&display=swap" rel="stylesheet">
   <!-- Leaflet.js for map -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
@@ -22,6 +24,10 @@
   <script src="auth-handler.js"></script>
   <!-- Stripe Payment System -->
   <script src="stripe-payment.js"></script>
+  <!-- Student Statistics System -->
+  <script src="student-stats.js"></script>
+  <!-- Demo Statistics (optional) -->
+  <script src="demo-stats.js"></script>
 </head>
 <body>
 
@@ -30,6 +36,7 @@
   <div id="user-avatar" class="user-avatar hidden" aria-label="Profil utilisateur" title="">
     <img id="avatar-img" src="" alt="Photo de profil">
   </div>
+  <button id="btn-admin" class="btn-home hidden" aria-label="Panneau d'administration" title="Admin">⚙️ Admin</button>
   <button id="btn-home" class="btn-home" data-action="goTo" data-param="home" aria-label="Accueil">🏠 Accueil</button>
 </div>
 
@@ -81,20 +88,16 @@
     <div style="max-width: 600px; margin: 40px auto; padding: 0 20px;">
       <!-- Bouton pour ouvrir le formulaire -->
       <div style="text-align: center; margin-bottom: 30px;">
-        <button onclick="openReviewModal()" 
-                style="padding: 16px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);"
-                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)'"
-                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)'">
+        <button data-action="openReviewModal" class="btn-review-modal btn-hover-lift"
+                style="padding: 16px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
           Laisser mon avis
         </button>
       </div>
       
       <div style="text-align: center;">
         <p style="font-size: 14px; color: #718096; margin-bottom: 12px;">Ou laissez un avis sur Google</p>
-        <a href="https://g.page/r/CSuSLlcLU4I-EAE/review" target="_blank" 
-           style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 24px; background: white; border: 2px solid #e2e8f0; color: #4a5568; text-decoration: none; border-radius: 10px; font-size: 14px; font-weight: 500; transition: all 0.3s;"
-           onmouseover="this.style.borderColor='#667eea'; this.style.color='#667eea'"
-           onmouseout="this.style.borderColor='#e2e8f0'; this.style.color='#4a5568'">
+        <a href="https://g.page/r/CSuSLlcLU4I-EAE/review" target="_blank" class="google-review-link-hover"
+           style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 24px; background: white; border: 2px solid #e2e8f0; color: #4a5568; text-decoration: none; border-radius: 10px; font-size: 14px; font-weight: 500; transition: all 0.3s;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
           Avis Google
         </a>
@@ -102,14 +105,10 @@
     </div>
     
     <!-- Modale pour le formulaire d'avis (masquée par défaut) -->
-    <div id="review-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(4px);"
-         onclick="if(event.target === this) closeReviewModal()">
-      <div style="background: white; max-width: 650px; width: 90%; max-height: 90vh; overflow-y: auto; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); position: relative; padding: 50px 40px; animation: modalFadeIn 0.3s ease-out;"
-           onclick="event.stopPropagation()">
-        <button onclick="closeReviewModal()" 
-                style="position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 28px; color: #a0aec0; cursor: pointer; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: all 0.3s;"
-                onmouseover="this.style.background='#f7fafc'; this.style.color='#2d3748'"
-                onmouseout="this.style.background='none'; this.style.color='#a0aec0'">
+    <div id="review-modal" data-modal="review" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
+      <div class="review-modal-content" style="background: white; max-width: 650px; width: 90%; max-height: 90vh; overflow-y: auto; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); position: relative; padding: 50px 40px; animation: modalFadeIn 0.3s ease-out;">
+        <button data-action="closeReviewModal" class="btn-close-modal-hover"
+                style="position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 28px; color: #a0aec0; cursor: pointer; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: all 0.3s;">
           X
         </button>
         
@@ -118,10 +117,8 @@
         <form id="review-form" style="display: flex; flex-direction: column; gap: 25px;">
           <div>
             <label style="display: block; margin-bottom: 10px; font-weight: 500; color: #4a5568; font-size: 15px;">Votre nom</label>
-            <input type="text" id="review-name" required placeholder="Entrez votre nom" 
-                   style="width: 100%; padding: 14px 18px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 15px; transition: all 0.3s; background: white; color: #2d3748;"
-                   onfocus="this.style.borderColor='#667eea'; this.style.boxShadow='0 0 0 3px rgba(102, 126, 234, 0.1)'"
-                   onblur="this.style.borderColor='#e2e8f0'; this.style.boxShadow='none'">
+            <input type="text" id="review-name" required placeholder="Entrez votre nom" class="input-focus-effect"
+                   style="width: 100%; padding: 14px 18px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 15px; transition: all 0.3s; background: white; color: #2d3748;">
           </div>
           
           <div>
@@ -138,16 +135,12 @@
           
           <div>
             <label style="display: block; margin-bottom: 10px; font-weight: 500; color: #4a5568; font-size: 15px;">Votre avis</label>
-            <textarea id="review-text" required rows="5" placeholder="Partagez votre expérience avec LOK IN..."
-                      style="width: 100%; padding: 14px 18px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 15px; resize: vertical; font-family: inherit; line-height: 1.6; transition: all 0.3s; background: white; color: #2d3748;"
-                      onfocus="this.style.borderColor='#667eea'; this.style.boxShadow='0 0 0 3px rgba(102, 126, 234, 0.1)'"
-                      onblur="this.style.borderColor='#e2e8f0'; this.style.boxShadow='none'"></textarea>
+            <textarea id="review-text" required rows="5" placeholder="Partagez votre expérience avec LOK IN..." class="input-focus-effect"
+                      style="width: 100%; padding: 14px 18px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 15px; resize: vertical; font-family: inherit; line-height: 1.6; transition: all 0.3s; background: white; color: #2d3748;"></textarea>
           </div>
           
-          <button type="submit" 
-                  style="padding: 16px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); margin-top: 10px;"
-                  onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)'"
-                  onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)'">
+          <button type="submit" class="btn-hover-lift"
+                  style="padding: 16px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); margin-top: 10px;">
             Publier mon avis
           </button>
         </form>
@@ -303,7 +296,7 @@
             <li>✗ Accès aux cours</li>
             <li>✗ Support prioritaire</li>
           </ul>
-          <button onclick="goToStripeCheckout('standard')" class="plan-button">
+          <button data-action="goToStripeCheckout" data-param="standard" class="plan-button">
             S'abonner – 4,99 € / mois
           </button>
         </div>
@@ -324,7 +317,7 @@
             <li>+ Support prioritaire 24/7</li>
             <li>+ Supplément: 25€ pour 4 cours</li>
           </ul>
-          <button onclick="goToStripeCheckout('premium')" class="plan-button premium">
+          <button data-action="goToStripeCheckout" data-param="premium" class="plan-button premium">
             Accès Premium – 120 € / an
           </button>
         </div>
@@ -346,9 +339,172 @@
             <li>+ Validité : 1 an</li>
             <li>+ Accès prioritaire aux professeurs</li>
           </ul>
-          <button onclick="goToStripeCheckout('extra')" id="btn-buy-extra-courses" class="plan-button premium">
+          <button data-action="goToStripeCheckout" data-param="extra" id="btn-buy-extra-courses" class="plan-button premium">
             Acheter 4 cours – 25 €
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section Statistiques pour les élèves -->
+    <div id="student-stats-section" class="student-stats-section hidden">
+      <h3 class="stats-title">📊 Mes Statistiques</h3>
+      <p class="stats-subtitle">Suivez votre activité sur Lok In</p>
+      
+      <div class="stats-grid">
+        <!-- Nombre de cours -->
+        <div class="stat-card">
+          <div class="stat-icon">📚</div>
+          <div class="stat-content">
+            <div class="stat-value" id="stat-courses">0</div>
+            <div class="stat-label">Cours suivis</div>
+          </div>
+        </div>
+
+        <!-- Nombre d'appels JustSpeak -->
+        <div class="stat-card">
+          <div class="stat-icon">💬</div>
+          <div class="stat-content">
+            <div class="stat-value" id="stat-justspeak">0</div>
+            <div class="stat-label">Appels JustSpeak</div>
+          </div>
+        </div>
+
+        <!-- Nombre de clashs -->
+        <div class="stat-card">
+          <div class="stat-icon">🎤</div>
+          <div class="stat-content">
+            <div class="stat-value" id="stat-clashs">0</div>
+            <div class="stat-label">Clashs réalisés</div>
+          </div>
+        </div>
+
+        <!-- Temps passé -->
+        <div class="stat-card">
+          <div class="stat-icon">⏱️</div>
+          <div class="stat-content">
+            <div class="stat-value" id="stat-duration">0h</div>
+            <div class="stat-label">Temps passé total</div>
+          </div>
+        </div>
+
+        <!-- Temps JustSpeak -->
+        <div class="stat-card">
+          <div class="stat-icon">💭</div>
+          <div class="stat-content">
+            <div class="stat-value" id="stat-justspeak-duration">0m</div>
+            <div class="stat-label">Temps JustSpeak</div>
+          </div>
+        </div>
+
+        <!-- Matières exploré -->
+        <div class="stat-card">
+          <div class="stat-icon">🎓</div>
+          <div class="stat-content">
+            <div class="stat-value" id="stat-subjects">0</div>
+            <div class="stat-label">Matières explorées</div>
+          </div>
+        </div>
+
+        <!-- Professeurs rencontrés -->
+        <div class="stat-card">
+          <div class="stat-icon">👨‍🏫</div>
+          <div class="stat-content">
+            <div class="stat-value" id="stat-teachers">0</div>
+            <div class="stat-label">Professeurs différents</div>
+          </div>
+        </div>
+
+        <!-- Note moyenne -->
+        <div class="stat-card">
+          <div class="stat-icon">⭐</div>
+          <div class="stat-content">
+            <div class="stat-value" id="stat-rating">-</div>
+            <div class="stat-label">Note moyenne donnée</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Détails par catégorie -->
+      <div class="stats-details">
+        <h4 class="details-title">📈 Détails par catégorie</h4>
+        
+        <div class="details-container">
+          <!-- Cours -->
+          <div class="detail-card">
+            <h5 class="detail-name">📚 Cours (20 min)</h5>
+            <div class="detail-stat">
+              <span class="detail-label">Nombre:</span>
+              <span class="detail-value" id="detail-courses-count">0</span>
+            </div>
+            <div class="detail-stat">
+              <span class="detail-label">Temps:</span>
+              <span class="detail-value" id="detail-courses-duration">0 min</span>
+            </div>
+            <div class="detail-stat">
+              <span class="detail-label">Coût estimé:</span>
+              <span class="detail-value" id="detail-courses-cost">0€</span>
+            </div>
+          </div>
+
+          <!-- JustSpeak -->
+          <div class="detail-card">
+            <h5 class="detail-name">💬 JustSpeak</h5>
+            <div class="detail-stat">
+              <span class="detail-label">Nombre d'appels:</span>
+              <span class="detail-value" id="detail-justspeak-count">0</span>
+            </div>
+            <div class="detail-stat">
+              <span class="detail-label">Temps total:</span>
+              <span class="detail-value" id="detail-justspeak-duration">0 min</span>
+            </div>
+            <div class="detail-stat">
+              <span class="detail-label">Moyenne par appel:</span>
+              <span class="detail-value" id="detail-justspeak-avg">0 min</span>
+            </div>
+          </div>
+
+          <!-- Clashs -->
+          <div class="detail-card">
+            <h5 class="detail-name">🎤 Clashs</h5>
+            <div class="detail-stat">
+              <span class="detail-label">Nombre:</span>
+              <span class="detail-value" id="detail-clashs-count">0</span>
+            </div>
+            <div class="detail-stat">
+              <span class="detail-label">Temps total:</span>
+              <span class="detail-value" id="detail-clashs-duration">0 min</span>
+            </div>
+            <div class="detail-stat">
+              <span class="detail-label">Durée moyenne:</span>
+              <span class="detail-value" id="detail-clashs-avg">0 min</span>
+            </div>
+          </div>
+
+          <!-- Abonnement -->
+          <div class="detail-card">
+            <h5 class="detail-name">💳 Abonnement</h5>
+            <div class="detail-stat">
+              <span class="detail-label">Status:</span>
+              <span class="detail-value" id="detail-subscription-status">Gratuit</span>
+            </div>
+            <div class="detail-stat">
+              <span class="detail-label">Type:</span>
+              <span class="detail-value" id="detail-subscription-type">-</span>
+            </div>
+            <div class="detail-stat">
+              <span class="detail-label">Total dépensé:</span>
+              <span class="detail-value" id="detail-total-spent">0€</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Historique récent -->
+      <div class="stats-history">
+        <h4 class="history-title">🕐 Activité Récente</h4>
+        <div id="recent-activity" class="recent-activity-list">
+          <p class="no-activity">Aucune activité enregistrée</p>
         </div>
       </div>
     </div>
@@ -959,7 +1115,8 @@
     <label><input type="checkbox" data-matiere="Physique-Chimie" data-action="toggleMatiere"> Physique-Chimie <span id="physique-status">🔴 Indisponible</span></label>
     <label><input type="checkbox" data-matiere="SVT (Sciences de la Vie et de la Terre)" data-action="toggleMatiere"> SVT <span id="svt-status">🔴 Indisponible</span></label>
     <label><input type="checkbox" data-matiere="Anglais" data-action="toggleMatiere"> Anglais <span id="anglais-status">🔴 Indisponible</span></label>
-    <label><input type="checkbox" data-matiere="Espagnol" data-action="toggleMatiere"> Espagnol <span id="espagnol-status">🔴 Indisponible</span></label>
+    <label><input type="checkbox" da
+    ta-matiere="Espagnol" data-action="toggleMatiere"> Espagnol <span id="espagnol-status">🔴 Indisponible</span></label>
     <label><input type="checkbox" data-matiere="Allemand" data-action="toggleMatiere"> Allemand <span id="allemand-status">🔴 Indisponible</span></label>
     <label><input type="checkbox" data-matiere="Italien" data-action="toggleMatiere"> Italien <span id="italien-status">🔴 Indisponible</span></label>
     <label><input type="checkbox" data-matiere="Latin" data-action="toggleMatiere"> Latin <span id="latin-status">🔴 Indisponible</span></label>

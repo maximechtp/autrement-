@@ -1,0 +1,35 @@
+/* Hover Effects - Centralized CSS for interactive elements */
+
+/* Button lift effect on hover */
+.btn-hover-lift {
+  transform: translateY(0);
+}
+
+.btn-hover-lift:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5) !important;
+}
+
+/* Google review link hover effect */
+.google-review-link-hover:hover {
+  border-color: #667eea !important;
+  color: #667eea !important;
+}
+
+/* Modal close button hover effect */
+.btn-close-modal-hover:hover {
+  background: #f7fafc !important;
+  color: #2d3748 !important;
+}
+
+/* Input/textarea focus effect */
+.input-focus-effect:focus {
+  border-color: #667eea !important;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+  outline: none;
+}
+
+.input-focus-effect:not(:focus) {
+  border-color: #e2e8f0;
+  box-shadow: none;
+}

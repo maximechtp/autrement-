@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panneau Admin - Lok In</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>⚙️</text></svg>">
+  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="auth-styles.css">
+  <link rel="stylesheet" href="admin-panel-styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Firebase Config -->
+  <script src="firebase-config.js"></script>
+  <!-- User Database -->
+  <script src="user-database.js"></script>
+  <!-- Auth Handler -->
+  <script src="auth-handler.js"></script>
+</head>
+<body>
+
+<div id="header-nav" role="navigation" aria-label="Navigation principale">
+  <button id="btn-back" class="btn-bubble" aria-label="Retour à la page précédente" title="Retour">←</button>
+  <h1 style="flex: 1; text-align: center; margin: 0; color: #333;">Panneau d'Administration</h1>
+  <div id="user-avatar" class="user-avatar hidden" aria-label="Profil utilisateur" title="">
+    <img id="avatar-img" src="" alt="Photo de profil">
+  </div>
+</div>
+
+<div id="admin-container" class="admin-container">
+  
+  <!-- Section Info Admin -->
+  <div class="admin-section info-section">
+    <h2>👋 Bienvenue Administrateur</h2>
+    <p id="admin-greeting">Connectez-vous pour accéder au panneau d'administration.</p>
+    <div id="admin-stats" class="admin-stats hidden">
+      <div class="stat-card">
+        <div class="stat-number" id="total-teachers">0</div>
+        <div class="stat-label">Professeurs</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="total-authorized-subjects">0</div>
+        <div class="stat-label">Matières autorisées</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="total-active-subjects">0</div>
+        <div class="stat-label">Matières actives</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section Gestion des Matières -->
+  <div class="admin-section">
+    <h2>🎯 Gestion des Matières des Professeurs</h2>
+    
+    <!-- Filtres -->
+    <div class="filters-section">
+      <input 
+        type="text" 
+        id="search-teachers" 
+        class="search-input" 
+        placeholder="Rechercher un professeur (nom, email)..."
+      />
+      <select id="filter-subjects" class="filter-select">
+        <option value="">Toutes les matières</option>
+      </select>
+      <button id="btn-refresh" class="btn-action btn-refresh">🔄 Actualiser</button>
+    </div>
+
+    <!-- Liste des Professeurs -->
+    <div id="teachers-list-container" class="teachers-list-container">
+      <p class="loading-message">Chargement des professeurs...</p>
+    </div>
+  </div>
+
+  <!-- Section Gestion des Matières Disponibles -->
+  <div class="admin-section">
+    <h2>📚 Matières Disponibles</h2>
+    <p class="section-description">Gérez la liste des matières disponibles sur la plateforme</p>
+    
+    <div class="subjects-management">
+      <div class="add-subject-form">
+        <h3>Ajouter une matière</h3>
+        <form id="add-subject-form">
+          <input 
+            type="text" 
+            id="new-subject-name" 
+            placeholder="Nom de la matière (ex: Mathématiques, Anglais...)"
+            required
+          />
+          <button type="submit" class="btn-action btn-add">+ Ajouter</button>
+        </form>
+      </div>
+
+      <div class="subjects-list">
+        <h3>Matières existantes</h3>
+        <div id="available-subjects" class="available-subjects">
+          <p class="loading-message">Chargement des matières...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal pour éditer les matières d'un professeur -->
+<div id="edit-subjects-modal" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Gérer les matières</h3>
+      <button class="modal-close" id="close-modal">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="modal-teacher-info" class="teacher-info"></p>
+      
+      <div class="subjects-grid" id="modal-subjects-grid">
+        <!-- Les matières apparaîtront ici -->
+      </div>
+
+      <div class="modal-footer">
+        <button id="save-subjects" class="btn-action btn-primary">💾 Sauvegarder</button>
+        <button id="cancel-edit" class="btn-action btn-secondary">Annuler</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Notification Toast -->
+<div id="notification-toast" class="toast hidden">
+  <span id="toast-message"></span>
+</div>
+
+<script src="admin-panel.js"></script>
+
+</body>
+</html>

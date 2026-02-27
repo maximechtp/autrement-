@@ -1043,6 +1043,161 @@ setInterval(() => {
   });
 }, 30000);
 
+// ============== ENDPOINTS ADMIN ==============
+
+// Liste des emails administrateurs autorisés
+const ADMIN_EMAILS = ['maxime.chantepiee@gmail.com', 'jan.smid14@gmail.com'];
+
+// Middleware pour vérifier si l'utilisateur est admin
+function isAdminEmail(email) {
+  return email && ADMIN_EMAILS.includes(email.toLowerCase());
+}
+
+/**
+ * GET /api/admin/teachers - Récupère la liste de tous les professeurs
+ */
+app.get('/api/admin/teachers', (req, res) => {
+  const adminEmail = req.query.adminEmail;
+  
+  // Vérifier que l'utilisateur est admin
+  if (!isAdminEmail(adminEmail)) {
+    return res.status(403).json({ success: false, error: 'Accès non autorisé' });
+  }
+
+  // Récupérer tous les utilisateurs et filtrer les professeurs
+  const allUsers = users;
+  const teachers = Object.values(allUsers).filter(user => user.isTeacher);
+
+  res.json({
+    success: true,
+    teachers: teachers.map(teacher => ({
+      email: teacher.email,
+      prenom: teacher.prenom,
+      nom: teacher.nom,
+      authorizedSubjects: teacher.teacherData?.authorizedSubjects || [],
+      availableSubjects: teacher.teacherData?.availableSubjects || [],
+      rating: teacher.teacherData?.rating || null,
+      courses: teacher.teacherData?.courses?.length || 0
+    }))
+  });
+});
+
+/**
+ * GET /api/admin/subjects - Récupère la liste de toutes les matières autorisées
+ */
+app.get('/api/admin/subjects', (req, res) => {
+  const adminEmail = req.query.adminEmail;
+  
+  // Vérifier que l'utilisateur est admin
+  if (!isAdminEmail(adminEmail)) {
+    return res.status(403).json({ success: false, error: 'Accès non autorisé' });
+  }
+
+  // Récupérer toutes les matières uniques depuis tous les professeurs
+  const allSubjects = new Set();
+  const allUsers = users;
+  
+  Object.values(allUsers).forEach(user => {
+    if (user.teacherData?.authorizedSubjects) {
+      user.teacherData.authorizedSubjects.forEach(subject => {
+        allSubjects.add(subject);
+      });
+    }
+  });
+
+  res.json({
+    success: true,
+    subjects: Array.from(allSubjects).sort()
+  });
+});
+
+/**
+ * PUT /api/admin/teacher/:email/subjects - Mettre à jour les matières autorisées d'un professeur
+ */
+app.put('/api/admin/teacher/:email/subjects', (req, res) => {
+  const adminEmail = req.query.adminEmail;
+  const teacherEmail = decodeURIComponent(req.params.email);
+  const { authorizedSubjects } = req.body;
+
+  // Vérifier que l'utilisateur est admin
+  if (!isAdminEmail(adminEmail)) {
+    return res.status(403).json({ success: false, error: 'Accès non autorisé' });
+  }
+
+  // Vérifier les données
+  if (!Array.isArray(authorizedSubjects)) {
+    return res.status(400).json({ success: false, error: 'Format invalide' });
+  }
+
+  // Trouver le professeur
+  const teacher = users[teacherEmail];
+  if (!teacher) {
+    return res.status(404).json({ success: false, error: 'Professeur non trouvé' });
+  }
+
+  if (!teacher.isTeacher) {
+    return res.status(400).json({ success: false, error: 'Cet utilisateur n\'est pas un professeur' });
+  }
+
+  // Mettre à jour les matières autorisées
+  if (!teacher.teacherData) {
+    teacher.teacherData = {};
+  }
+  
+  teacher.teacherData.authorizedSubjects = authorizedSubjects;
+  
+  // Réinitialiser les matières disponibles qui ne sont plus autorisées
+  teacher.teacherData.availableSubjects = teacher.teacherData.availableSubjects.filter(
+    subject => authorizedSubjects.includes(subject)
+  );
+
+  // Sauvegarder
+  users[teacherEmail] = teacher;
+  saveUsers();
+
+  console.log(`✅ Matières mises à jour pour ${teacherEmail}: ${authorizedSubjects.join(', ')}`);
+
+  res.json({
+    success: true,
+    message: 'Matières mises à jour',
+    teacher: {
+      email: teacher.email,
+      prenom: teacher.prenom,
+      nom: teacher.nom,
+      authorizedSubjects: teacher.teacherData.authorizedSubjects,
+      availableSubjects: teacher.teacherData.availableSubjects
+    }
+  });
+});
+
+/**
+ * POST /api/admin/subject - Ajouter une nouvelle matière disponible
+ */
+app.post('/api/admin/subject', (req, res) => {
+  const adminEmail = req.query.adminEmail;
+  const { subject } = req.body;
+
+  // Vérifier que l'utilisateur est admin
+  if (!isAdminEmail(adminEmail)) {
+    return res.status(403).json({ success: false, error: 'Accès non autorisé' });
+  }
+
+  // Vérifier les données
+  if (!subject || typeof subject !== 'string') {
+    return res.status(400).json({ success: false, error: 'Matière invalide' });
+  }
+
+  // Pour l'instant, on ne fait que retourner un succès
+  // La gestion des matières est décentralisée (gérée par les profs)
+  console.log(`✅ Nouvelle matière créée: ${subject}`);
+
+  res.json({
+    success: true,
+    message: 'Matière créée',
+    subject: subject.trim()
+  });
+});
+
 // ============== ENDPOINT WEBHOOK STRIPE ==============
 
 /**

@@ -462,8 +462,31 @@ function updateUserAvatar() {
       };
       avatar.dataset.handlerSet = 'true';
     }
+    
+    // Afficher le bouton admin si l'utilisateur est administrateur
+    updateAdminButton();
   } else {
     avatar.classList.add('hidden');
+    const adminBtn = document.getElementById('btn-admin');
+    if (adminBtn) {
+      adminBtn.classList.add('hidden');
+    }
+  }
+}
+
+function updateAdminButton() {
+  const adminEmails = ['maxime.chantepiee@gmail.com', 'jan.smid14@gmail.com'];
+  const adminBtn = document.getElementById('btn-admin');
+  
+  if (sessionData.isLoggedIn && adminBtn) {
+    if (adminEmails.includes(sessionData.email.toLowerCase())) {
+      adminBtn.classList.remove('hidden');
+      adminBtn.onclick = () => {
+        window.location.href = 'admin-panel.html';
+      };
+    } else {
+      adminBtn.classList.add('hidden');
+    }
   }
 }
 
@@ -497,6 +520,12 @@ function showUserProfile() {
   
   // Show/hide extra courses section for Premium subscribers
   updateExtraCoursesVisibility();
+  
+  // Initialize and display student statistics
+  if (!sessionData.isTeacher) {
+    initStudentStats(sessionData.email);
+    displayStudentStats();
+  }
   
   // Navigate to profile page
   goTo('user-profile');
@@ -1570,10 +1599,36 @@ document.addEventListener("DOMContentLoaded", () => {
         demanderAutorisationMatieres();
         break;
 
+      case "openReviewModal":
+        openReviewModal();
+        break;
+
+      case "closeReviewModal":
+        closeReviewModal();
+        break;
+
+      case "goToStripeCheckout":
+        goToStripeCheckout(param);
+        break;
+
       default:
         console.warn("Action inconnue :", action);
     }
   });
+
+  // Handler pour fermer la modale review en cliquant en dehors
+  const reviewModal = document.getElementById('review-modal');
+  if (reviewModal) {
+    reviewModal.addEventListener('click', (event) => {
+      // Fermer si on clique sur le backdrop (pas sur le contenu)
+      if (event.target === reviewModal) {
+        closeReviewModal();
+      }
+    });
+  }
+
+  // Setup review form and star rating
+  initReviewForm();
 });
 
 /* ---------- Navigation ---------- */
