@@ -184,8 +184,8 @@ button.btn-secondary:hover {
 #eleve-options {
   padding-top: 70px;
   padding-bottom: 36px;
-  background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
-  border: 1px solid #e7ecff;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e5e7eb;
 }
 
 #eleve-options button {
@@ -193,12 +193,12 @@ button.btn-secondary:hover {
 }
 
 #eleve-options #options-title {
-  font-size: 56px;
+  font-size: 52px;
   line-height: 1.05;
   letter-spacing: -1px;
   margin-top: 4px;
   margin-bottom: 26px;
-  background: linear-gradient(135deg, #1f2a5a 0%, #2e3f84 45%, #5770ff 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 45%, #334155 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -209,17 +209,17 @@ button.btn-secondary:hover {
   min-width: 190px;
   padding: 14px 20px;
   border-radius: 16px;
-  border: 1px solid #d9e3ff;
-  background: linear-gradient(180deg, #ffffff 0%, #f5f8ff 100%);
-  color: #24346b;
-  box-shadow: 0 8px 24px rgba(63, 92, 204, 0.12);
+  border: 1px solid #d1d5db;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  color: #0f172a;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
   transform: none;
 }
 
 #eleve-options button[data-action="chooseOption"]:hover {
   transform: translateY(-2px);
-  background: linear-gradient(180deg, #ffffff 0%, #eef3ff 100%);
-  box-shadow: 0 14px 28px rgba(63, 92, 204, 0.18);
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
 }
 
 .social-link {
@@ -1083,13 +1083,13 @@ input::placeholder {
 
 /* Welcome Message */
 .welcome-message {
-  background: linear-gradient(120deg, #eef3ff 0%, #e4ecff 45%, #f2f6ff 100%);
-  border: 1px solid #dbe6ff;
+  background: linear-gradient(120deg, #f8fafc 0%, #eef2f7 45%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
   padding: 18px 28px;
   border-radius: 18px;
   margin-bottom: 20px;
   margin-top: 30px;
-  box-shadow: 0 10px 30px rgba(69, 103, 204, 0.14);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
   position: relative;
   z-index: 1;
   animation: slideIn 0.4s ease-out;
@@ -1100,7 +1100,7 @@ input::placeholder {
 }
 
 .welcome-message h2 {
-  color: #20326d;
+  color: #0f172a;
   font-size: 30px;
   margin: 0;
   font-weight: 700;

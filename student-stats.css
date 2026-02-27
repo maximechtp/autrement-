@@ -4,9 +4,9 @@
   margin-top: 42px;
   padding: 28px;
   border-radius: 24px;
-  border: 1px solid #e3e9ff;
-  background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
-  box-shadow: 0 14px 40px rgba(40, 75, 180, 0.08);
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
 }
 
 .student-stats-section.hidden {
@@ -14,7 +14,7 @@
 }
 
 .stats-title {
-  color: #1f2d5f;
+  color: #0f172a;
   font-size: 30px;
   font-weight: 700;
   margin: 0 0 8px 0;
@@ -22,7 +22,7 @@
 }
 
 .stats-subtitle {
-  color: #5b6791;
+  color: #64748b;
   font-size: 15px;
   margin-bottom: 26px;
 }
@@ -41,14 +41,15 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  color: white;
-  box-shadow: 0 10px 24px rgba(31, 45, 95, 0.12);
+  color: #0f172a;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .stat-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 14px 28px rgba(31, 45, 95, 0.18);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.1);
 }
 
 .stat-icon {
@@ -71,46 +72,46 @@
   font-size: 12px;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  opacity: 0.95;
+  color: #475569;
   font-weight: 500;
 }
 
 /* Couleurs alternées pour les stat-cards */
 .stat-card:nth-child(1) {
-  background: linear-gradient(135deg, #4f63d9 0%, #6a7cf2 100%);
+  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
 }
 
 .stat-card:nth-child(2) {
-  background: linear-gradient(135deg, #e25ca5 0%, #ef6a86 100%);
+  background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
 }
 
 .stat-card:nth-child(3) {
-  background: linear-gradient(135deg, #3299e3 0%, #39b5ef 100%);
+  background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%);
 }
 
 .stat-card:nth-child(4) {
-  background: linear-gradient(135deg, #34c57a 0%, #35d7b2 100%);
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
 }
 
 .stat-card:nth-child(5) {
-  background: linear-gradient(135deg, #f08a6d 0%, #f6b647 100%);
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
 }
 
 .stat-card:nth-child(6) {
-  background: linear-gradient(135deg, #5568db 0%, #3242a8 100%);
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
 }
 
 .stat-card:nth-child(7) {
-  background: linear-gradient(135deg, #8fdbf3 0%, #93b5ff 100%);
-  color: #1e2d5c;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  color: #0f172a;
 }
 
 .stat-card:nth-child(7) .stat-label {
-  color: #273c7a;
+  color: #475569;
 }
 
 .stat-card:nth-child(8) {
-  background: linear-gradient(135deg, #ff8f68 0%, #ff6f9b 100%);
+  background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
 }
 
 /* ===== DÉTAILS PAR CATÉGORIE ===== */
@@ -119,7 +120,7 @@
 }
 
 .details-title {
-  color: #1f2d5f;
+  color: #0f172a;
   font-size: 22px;
   font-weight: 700;
   margin: 0 0 16px 0;
@@ -132,8 +133,8 @@
 }
 
 .detail-card {
-  background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
-  border: 1px solid #deE6ff;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
   border-radius: 16px;
   padding: 18px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -141,12 +142,12 @@
 
 .detail-card:hover {
   transform: translateY(-2px);
-  border-color: #becfff;
-  box-shadow: 0 10px 24px rgba(61, 92, 190, 0.12);
+  border-color: #cbd5e1;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 
 .detail-name {
-  color: #27376f;
+  color: #0f172a;
   font-size: 16px;
   font-weight: 700;
   margin: 0 0 12px 0;
@@ -157,7 +158,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 9px 0;
-  border-bottom: 1px solid #edf1ff;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .detail-stat:last-child {
@@ -165,28 +166,28 @@
 }
 
 .detail-label {
-  color: #60709d;
+  color: #64748b;
   font-size: 13px;
   font-weight: 500;
 }
 
 .detail-value {
-  color: #1f2d5f;
+  color: #0f172a;
   font-size: 14px;
   font-weight: 700;
 }
 
 /* ===== HISTORIQUE D'ACTIVITÉ ===== */
 .stats-history {
-  background: linear-gradient(180deg, #f8faff 0%, #f2f6ff 100%);
-  border: 1px solid #e0e8ff;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 16px;
   padding: 20px;
   margin-top: 22px;
 }
 
 .history-title {
-  color: #1f2d5f;
+  color: #0f172a;
   font-size: 22px;
   font-weight: 700;
   margin: 0 0 14px 0;
@@ -199,8 +200,8 @@
 
 .activity-item {
   background: #ffffff;
-  border: 1px solid #dde6ff;
-  border-left: 4px solid #5d74f1;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #6366f1;
   padding: 11px 14px;
   margin-bottom: 10px;
   border-radius: 12px;
@@ -218,20 +219,20 @@
 }
 
 .activity-text {
-  color: #24356c;
+  color: #0f172a;
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 4px;
 }
 
 .activity-time {
-  color: #7f8cb3;
+  color: #64748b;
   font-size: 12px;
 }
 
 .activity-type {
-  background: #eef2ff;
-  color: #4a62dc;
+  background: #e2e8f0;
+  color: #334155;
   padding: 4px 12px;
   border-radius: 20px;
   font-size: 12px;
@@ -241,7 +242,7 @@
 
 .no-activity {
   text-align: center;
-  color: #7f8cb3;
+  color: #64748b;
   font-size: 14px;
   padding: 24px 20px;
 }
