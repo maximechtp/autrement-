@@ -531,6 +531,19 @@ function showUserProfile() {
   goTo('user-profile');
 }
 
+function placeStudentStatsInEleveOptions() {
+  const statsSection = document.getElementById('student-stats-section');
+  const eleveOptionsPage = document.getElementById('eleve-options');
+
+  if (!statsSection || !eleveOptionsPage) return;
+
+  // Déplacer la section stats dans la page élève options
+  // pour qu'elle s'affiche sur cette page plutôt que dans le profil.
+  if (statsSection.parentElement !== eleveOptionsPage) {
+    eleveOptionsPage.appendChild(statsSection);
+  }
+}
+
 function updateExtraCoursesVisibility() {
   const extraCoursesSection = document.getElementById('extra-courses-section');
   if (extraCoursesSection) {
@@ -1325,6 +1338,10 @@ document.addEventListener("DOMContentLoaded", () => {
     sessionData.isSubscribed = user.subscription.isActive;
     sessionData.subscriptionType = user.subscription.type;
     sessionData.usageCount = getUsageData(user.email);
+
+    // Important: persister aussi dans sessionStorage pour les pages annexes
+    // (ex: admin-panel.html) qui valident l'accès via lok_in_session.
+    saveSessionToStorage();
     
     console.log('✅ Session restaurée automatiquement');
     console.log('📊 Abonnement actif:', sessionData.isSubscribed);
@@ -1738,6 +1755,13 @@ function goTo(pageId) {
       if (welcomeMessage && welcomeElement) {
         welcomeElement.textContent = `👋 Bonjour ${sessionData.prenom}`;
         welcomeMessage.classList.remove('hidden');
+      }
+
+      // Afficher les statistiques directement sur la page élève options
+      if (pageId === 'eleve-options' && !sessionData.isTeacher && sessionData.email) {
+        placeStudentStatsInEleveOptions();
+        initStudentStats(sessionData.email);
+        displayStudentStats();
       }
     } else {
       // Cacher les messages de bienvenue sur les autres pages

@@ -38,8 +38,28 @@ document.addEventListener('DOMContentLoaded', () => {
 // ===== AUTHENTIFICATION =====
 function checkAdminAuth() {
   // Récupérer l'utilisateur actuel depuis sessionStorage
-  const sessionData = sessionStorage.getItem('lok_in_session');
-  
+  let sessionData = sessionStorage.getItem('lok_in_session');
+
+  // Fallback: restaurer depuis userDB si la sessionStorage est vide
+  // (cas possible après restauration auto sur la page principale)
+  if (!sessionData && typeof userDB !== 'undefined' && userDB.getCurrentUser) {
+    const currentUser = userDB.getCurrentUser();
+    if (currentUser) {
+      const fallbackSession = {
+        isLoggedIn: true,
+        email: currentUser.email || '',
+        prenom: currentUser.prenom || '',
+        nom: currentUser.nom || '',
+        classe: currentUser.classe || '',
+        isTeacher: !!currentUser.isTeacher,
+        isSubscribed: !!(currentUser.subscription && currentUser.subscription.isActive),
+        subscriptionType: (currentUser.subscription && currentUser.subscription.type) || null
+      };
+      sessionStorage.setItem('lok_in_session', JSON.stringify(fallbackSession));
+      sessionData = JSON.stringify(fallbackSession);
+    }
+  }
+
   if (!sessionData) {
     redirectToHome();
     return;
