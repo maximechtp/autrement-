@@ -397,6 +397,10 @@ function handleStartSearch(clientId, message) {
   // Si c'est une recherche de cours, chercher un professeur disponible
   if (searchType === 'cours' && matiere) {
     console.log(`🔍 ${user.name} recherche un cours de ${matiere} (${niveau})`);
+
+    // Notifier tous les professeurs connectés qui sont autorisés sur cette matière
+    notifyAuthorizedTeachersForSubject(user, matiere, niveau);
+
     handleStudentSearchingTeacher(clientId, user);
     return;
   }
@@ -563,6 +567,74 @@ function handleStartSearch(clientId, message) {
     }
     console.log(`⏳ ${user.name} ajouté aux files d'attente pour: ${user.searchLanguages.join(', ')}`);
   }
+}
+
+/**
+ * Normalise un nom de matière pour comparaison robuste
+ */
+function normalizeSubjectName(subject) {
+  return String(subject || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+/**
+ * Notifie tous les professeurs connectés autorisés à enseigner la matière recherchée
+ */
+function notifyAuthorizedTeachersForSubject(student, matiere, niveau) {
+  const normalizedTarget = normalizeSubjectName(matiere);
+  if (!normalizedTarget) return;
+
+  // Construire l'ensemble des emails profs autorisés pour cette matière
+  const authorizedTeacherEmails = new Set();
+
+  Object.values(users).forEach((u) => {
+    if (!u || !u.isTeacher) return;
+
+    const authorizedSubjects = u.teacherData?.authorizedSubjects || [];
+    const isAuthorized = authorizedSubjects.some(
+      (s) => normalizeSubjectName(s) === normalizedTarget
+    );
+
+    if (isAuthorized && u.email) {
+      authorizedTeacherEmails.add(String(u.email).toLowerCase());
+    }
+  });
+
+  if (authorizedTeacherEmails.size === 0) {
+    console.log(`ℹ️ Aucun professeur autorisé trouvé pour la matière: ${matiere}`);
+    return;
+  }
+
+  let notifiedCount = 0;
+
+  connectedUsers.forEach((connectedUser) => {
+    if (!connectedUser || !connectedUser.ws || connectedUser.ws.readyState !== WebSocket.OPEN) return;
+
+    const email = connectedUser.email ? String(connectedUser.email).toLowerCase() : '';
+    if (!email || !authorizedTeacherEmails.has(email)) return;
+
+    connectedUser.ws.send(JSON.stringify({
+      type: 'courseSearchNotification',
+      matiere,
+      niveau: niveau || null,
+      student: {
+        prenom: student.prenom || null,
+        nom: student.nom || null,
+        classe: student.classe || null,
+        email: student.email || null,
+        name: student.name || null
+      },
+      timestamp: Date.now(),
+      message: `Nouvelle demande de cours en ${matiere}`
+    }));
+
+    notifiedCount += 1;
+  });
+
+  console.log(`📣 Notification envoyée à ${notifiedCount} professeur(s) autorisé(s) pour ${matiere}`);
 }
 
 /**

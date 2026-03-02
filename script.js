@@ -3302,6 +3302,13 @@ function connectWebSocket() {
             console.log('❌ Indisponibilité confirmée:', data.matiere);
             break;
 
+          case 'courseSearchNotification':
+            // Notification envoyée aux professeurs autorisés pour une matière
+            if (sessionData.isTeacher) {
+              showTeacherCourseSearchNotification(data);
+            }
+            break;
+
           case 'searchStopped':
             // La recherche a été arrêtée
             console.log('🛑 Recherche arrêtée');
@@ -3394,6 +3401,48 @@ function connectWebSocket() {
       }
     }
   }
+}
+
+/**
+ * Affiche une notification élégante pour les professeurs lorsqu'un élève recherche un cours
+ */
+function showTeacherCourseSearchNotification(data) {
+  const studentName = data?.student?.name || `${data?.student?.prenom || ''} ${data?.student?.nom || ''}`.trim() || 'Un élève';
+  const matiere = data?.matiere || 'une matière';
+  const niveau = data?.niveau ? ` (${data.niveau})` : '';
+
+  const notif = document.createElement('div');
+  notif.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    max-width: 360px;
+    background: #0f172a;
+    color: #ffffff;
+    border: 1px solid #1e293b;
+    border-left: 4px solid #6366f1;
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 16px 32px rgba(2, 6, 23, 0.35);
+    z-index: 10000;
+    font-size: 14px;
+    line-height: 1.4;
+    animation: slideIn 0.25s ease-out;
+  `;
+
+  notif.innerHTML = `
+    <div style="font-weight:700; margin-bottom:4px;">📚 Nouvelle demande de cours</div>
+    <div><strong>${studentName}</strong> recherche <strong>${matiere}</strong>${niveau}</div>
+  `;
+
+  document.body.appendChild(notif);
+
+  setTimeout(() => {
+    notif.style.opacity = '0';
+    notif.style.transform = 'translateY(-6px)';
+    notif.style.transition = 'all 0.2s ease';
+    setTimeout(() => notif.remove(), 220);
+  }, 5000);
 }
 
 /**
