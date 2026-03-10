@@ -48,9 +48,57 @@
     </div>
   </div>
 
+  <!-- Section Demandes de Rendez-vous Professeur -->
+  <div class="admin-section">
+    <h2>🔔 Demandes de Rendez-vous Professeur</h2>
+    <p class="section-description">
+      Les demandes envoyées depuis l'espace professeur apparaissent ici pour validation par l'administration.
+      <strong>En attente : <span id="pending-requests-count">0</span></strong>
+    </p>
+    <div id="authorization-requests-container" class="authorization-requests-container">
+      <p class="loading-message">Chargement des demandes...</p>
+    </div>
+  </div>
+
   <!-- Section Gestion des Matières -->
   <div class="admin-section">
     <h2>🎯 Gestion des Matières des Professeurs</h2>
+
+    <div class="add-teacher-form-card">
+      <h3>➕ Ajouter un professeur</h3>
+      <p class="section-description">Créez un profil professeur avec email, prénom et nom. Vous pourrez ensuite gérer ses matières.</p>
+      <form id="add-teacher-form" class="add-teacher-form">
+        <input type="hidden" id="new-teacher-request-id" />
+        <input
+          type="email"
+          id="new-teacher-email"
+          class="search-input"
+          placeholder="Email du professeur"
+          required
+        />
+        <input
+          type="text"
+          id="new-teacher-prenom"
+          class="search-input"
+          placeholder="Prénom"
+          required
+        />
+        <input
+          type="text"
+          id="new-teacher-nom"
+          class="search-input"
+          placeholder="Nom"
+          required
+        />
+        <input
+          type="text"
+          id="new-teacher-subjects"
+          class="search-input"
+          placeholder="Matières (optionnel, séparées par des virgules)"
+        />
+        <button type="submit" class="btn-action btn-add">➕ Ajouter le professeur</button>
+      </form>
+    </div>
     
     <!-- Filtres -->
     <div class="filters-section">

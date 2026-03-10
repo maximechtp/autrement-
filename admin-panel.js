@@ -19,6 +19,7 @@ const ADMIN_EMAILS = ['maxime.chantepiee@gmail.com', 'jan.smid14@gmail.com'];
 let appState = {
   currentAdminEmail: null,
   teachers: [],
+  authorizationRequests: [],
   allSubjects: new Set(),
   selectedTeacher: null,
   selectedSubjects: []
@@ -79,6 +80,14 @@ function checkAdminAuth() {
     updateAdminGreeting(session);
     loadTeachers();
     loadAvailableSubjects();
+    loadTeacherAuthorizationRequests();
+
+    // Rafraîchissement périodique des demandes pour afficher les nouvelles notifications
+    setInterval(() => {
+      if (appState.currentAdminEmail) {
+        loadTeacherAuthorizationRequests();
+      }
+    }, 15000);
 
   } catch (error) {
     console.error('Erreur d\'authentification:', error);
@@ -142,7 +151,142 @@ async function loadAvailableSubjects() {
   }
 }
 
+async function loadTeacherAuthorizationRequests() {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/admin/teacher-authorization-requests?adminEmail=${encodeURIComponent(appState.currentAdminEmail)}`
+    );
+
+    if (!response.ok) {
+      throw new Error('Erreur lors de la récupération des demandes');
+    }
+
+    const data = await response.json();
+    appState.authorizationRequests = data.requests || [];
+
+    updateAuthorizationRequestsList();
+  } catch (error) {
+    console.error('Erreur loadTeacherAuthorizationRequests:', error);
+    showNotification('Erreur lors du chargement des demandes de rendez-vous', 'error');
+  }
+}
+
 // ===== AFFICHAGE DES DONNÉES =====
+function updateAuthorizationRequestsList() {
+  const container = document.getElementById('authorization-requests-container');
+  const pendingCount = appState.authorizationRequests.filter(r => r.status === 'pending').length;
+  const pendingCountEl = document.getElementById('pending-requests-count');
+
+  if (pendingCountEl) {
+    pendingCountEl.textContent = String(pendingCount);
+  }
+
+  if (!container) {
+    return;
+  }
+
+  if (!appState.authorizationRequests.length) {
+    container.innerHTML = '<p class="no-data">Aucune demande pour le moment</p>';
+    return;
+  }
+
+  let html = '<div class="authorization-requests-grid">';
+
+  appState.authorizationRequests.forEach(request => {
+    const fullName = `${request.prenom || ''} ${request.nom || ''}`.trim() || 'Professeur';
+    const statusLabel = request.status === 'processed' ? 'traitée' : 'en attente';
+    const requestedSubjects = Array.isArray(request.requestedSubjects) && request.requestedSubjects.length
+      ? request.requestedSubjects.join(', ')
+      : 'À préciser';
+
+    html += `
+      <div class="authorization-request-card ${request.status}">
+        <div class="request-header">
+          <strong>${fullName}</strong>
+          <span class="request-status ${request.status}">${statusLabel}</span>
+        </div>
+        <p class="teacher-email">${request.email}</p>
+        <p class="request-subjects"><strong>Matières souhaitées :</strong> ${requestedSubjects}</p>
+        ${request.note ? `<p class="request-note">${request.note}</p>` : ''}
+        <p class="request-meta">
+          Demande: ${new Date(request.createdAt).toLocaleString('fr-FR')}
+          ${request.status === 'processed' && request.processedBy
+            ? `<br>Traitée par: ${request.processedBy}`
+            : ''}
+        </p>
+        <div class="request-actions">
+          <button class="btn-action btn-primary btn-prefill-request" data-request-id="${request.id}">
+            ✍️ Pré-remplir le formulaire prof
+          </button>
+          ${request.status === 'pending'
+            ? `<button class="btn-action btn-secondary btn-mark-request-processed" data-request-id="${request.id}">✅ Marquer traitée</button>`
+            : ''
+          }
+        </div>
+      </div>
+    `;
+  });
+
+  html += '</div>';
+  container.innerHTML = html;
+
+  document.querySelectorAll('.btn-prefill-request').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const requestId = btn.dataset.requestId;
+      prefillTeacherFormFromRequest(requestId);
+    });
+  });
+
+  document.querySelectorAll('.btn-mark-request-processed').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const requestId = btn.dataset.requestId;
+      await updateAuthorizationRequestStatus(requestId, 'processed');
+    });
+  });
+}
+
+function prefillTeacherFormFromRequest(requestId) {
+  const request = appState.authorizationRequests.find(r => r.id === requestId);
+  if (!request) return;
+
+  document.getElementById('new-teacher-request-id').value = request.id;
+  document.getElementById('new-teacher-email').value = request.email || '';
+  document.getElementById('new-teacher-prenom').value = request.prenom || '';
+  document.getElementById('new-teacher-nom').value = request.nom || '';
+  document.getElementById('new-teacher-subjects').value = Array.isArray(request.requestedSubjects)
+    ? request.requestedSubjects.join(', ')
+    : '';
+
+  showNotification('Formulaire professeur pré-rempli depuis la demande', 'info');
+}
+
+async function updateAuthorizationRequestStatus(requestId, status) {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/admin/teacher-authorization-request/${encodeURIComponent(requestId)}/status?adminEmail=${encodeURIComponent(appState.currentAdminEmail)}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Impossible de mettre à jour la demande');
+    }
+
+    await loadTeacherAuthorizationRequests();
+    showNotification('Demande mise à jour', 'success');
+  } catch (error) {
+    console.error('Erreur updateAuthorizationRequestStatus:', error);
+    showNotification(error.message, 'error');
+  }
+}
+
 function updateTeachersList() {
   const container = document.getElementById('teachers-list-container');
   
@@ -371,6 +515,65 @@ async function saveSubjectsChanges() {
   }
 }
 
+async function createTeacher() {
+  const emailInput = document.getElementById('new-teacher-email');
+  const prenomInput = document.getElementById('new-teacher-prenom');
+  const nomInput = document.getElementById('new-teacher-nom');
+  const subjectsInput = document.getElementById('new-teacher-subjects');
+  const requestIdInput = document.getElementById('new-teacher-request-id');
+
+  const email = emailInput.value.trim().toLowerCase();
+  const prenom = prenomInput.value.trim();
+  const nom = nomInput.value.trim();
+  const authorizationRequestId = requestIdInput.value.trim() || null;
+  const authorizedSubjects = subjectsInput.value
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  if (!email || !prenom || !nom) {
+    showNotification('Email, prénom et nom sont requis', 'error');
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/admin/teacher?adminEmail=${encodeURIComponent(appState.currentAdminEmail)}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email,
+          prenom,
+          nom,
+          authorizedSubjects,
+          authorizationRequestId
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Erreur lors de la création du professeur');
+    }
+
+    document.getElementById('add-teacher-form').reset();
+  requestIdInput.value = '';
+
+    await loadTeachers();
+    await loadAvailableSubjects();
+  await loadTeacherAuthorizationRequests();
+
+    showNotification(`Professeur ajouté: ${prenom} ${nom}`, 'success');
+  } catch (error) {
+    console.error('Erreur createTeacher:', error);
+    showNotification(error.message, 'error');
+  }
+}
+
 // ===== ÉVÉNEMENTS =====
 function setupEventListeners() {
   // Bouton retour
@@ -383,6 +586,7 @@ function setupEventListeners() {
     showNotification('Actualisation en cours...', 'info');
     await loadTeachers();
     await loadAvailableSubjects();
+    await loadTeacherAuthorizationRequests();
     showNotification('Données actualisées', 'success');
   });
 
@@ -437,6 +641,12 @@ function setupEventListeners() {
       console.error('Erreur addSubject:', error);
       showNotification(error.message, 'error');
     }
+  });
+
+  // Ajouter un professeur
+  document.getElementById('add-teacher-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await createTeacher();
   });
 }
 

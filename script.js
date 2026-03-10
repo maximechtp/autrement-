@@ -1675,6 +1675,14 @@ function goBack() {
 // Cache DOM pour optimisation
 const pageCache = { pages: null, modalOverlay: null };
 
+function updateProfDashboardName() {
+  const profNameElement = document.getElementById('prof-display-name');
+  if (!profNameElement) return;
+
+  const fullName = `${sessionData.prenom || ''} ${sessionData.nom || ''}`.trim();
+  profNameElement.textContent = fullName || 'Professeur';
+}
+
 function goTo(pageId) {
   // Si déjà connecté et qu'on essaie d'aller sur la page de connexion, rediriger
   if (sessionData.isLoggedIn && pageId === 'eleve') {
@@ -1730,9 +1738,10 @@ function goTo(pageId) {
       }
     }
     
-    // Load course requests when accessing professor page
-    if (pageId === 'prof' && sessionData.isTeacher) {
+    // Load teacher dashboard data when accessing professor dashboard
+    if (pageId === 'prof-dashboard' && sessionData.isTeacher) {
       requestAnimationFrame(() => {
+        updateProfDashboardName();
         loadCourseRequests();
         loadAuthorizedMatieres();
         updateCagnotteDisplay();
@@ -1740,14 +1749,14 @@ function goTo(pageId) {
     }
     
     // Update welcome message when accessing eleve-options or prof page
-    if ((pageId === 'eleve-options' || pageId === 'prof') && sessionData.isLoggedIn && sessionData.prenom) {
+    if ((pageId === 'eleve-options' || pageId === 'prof-dashboard') && sessionData.isLoggedIn && sessionData.prenom) {
       // Cacher tous les messages de bienvenue
       document.getElementById('welcome-message-eleve')?.classList.add('hidden');
       document.getElementById('welcome-message-prof')?.classList.add('hidden');
       
       // Afficher et mettre à jour le bon message
-      const welcomeMessageId = pageId === 'prof' ? 'welcome-message-prof' : 'welcome-message-eleve';
-      const welcomeTextId = pageId === 'prof' ? 'welcome-text-prof' : 'welcome-text-eleve';
+      const welcomeMessageId = pageId === 'prof-dashboard' ? 'welcome-message-prof' : 'welcome-message-eleve';
+      const welcomeTextId = pageId === 'prof-dashboard' ? 'welcome-text-prof' : 'welcome-text-eleve';
       
       const welcomeMessage = document.getElementById(welcomeMessageId);
       const welcomeElement = document.getElementById(welcomeTextId);
@@ -3916,21 +3925,48 @@ function loadAuthorizedMatieres() {
 }
 
 function demanderAutorisationMatieres() {
-  const email = 'lokin.officiel@gmail.com';
-  const subject = encodeURIComponent('Demande d\'autorisation pour enseigner des matières');
-  const body = encodeURIComponent(
-    `Bonjour,\n\n` +
-    `Je souhaite prendre rendez-vous pour obtenir l'autorisation d'enseigner des matières sur la plateforme Lok In.\n\n` +
-    `Mes informations:\n` +
-    `Nom: ${sessionData.prenom} ${sessionData.nom}\n` +
-    `Email: ${sessionData.email}\n\n` +
-    `Matières souhaitées: [À préciser lors du rendez-vous]\n\n` +
-    `Merci de me contacter pour fixer un rendez-vous.\n\n` +
-    `Cordialement,\n` +
-    `${sessionData.prenom} ${sessionData.nom}`
+  if (!sessionData.isLoggedIn || !sessionData.email) {
+    alert('⚠️ Veuillez vous connecter pour envoyer une demande.');
+    return;
+  }
+
+  const subjectsRaw = prompt(
+    'Quelles matières souhaitez-vous enseigner ?\n\nSéparez-les par des virgules (ex: Mathématiques, Physique, Anglais).',
+    ''
   );
-  
-  window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+
+  const requestedSubjects = (subjectsRaw || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const note = `Demande envoyée depuis l'espace professeur le ${new Date().toLocaleString('fr-FR')}`;
+
+  fetch(`${API_BASE_URL}/api/teacher-authorization-request`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      email: sessionData.email,
+      prenom: sessionData.prenom || '',
+      nom: sessionData.nom || '',
+      requestedSubjects,
+      note
+    })
+  })
+    .then(async (response) => {
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur lors de l\'envoi de la demande');
+      }
+
+      alert('✅ Votre demande a été envoyée à l\'administration. Vous serez contacté pour le rendez-vous.');
+    })
+    .catch((error) => {
+      console.error('❌ Erreur demande autorisation professeur:', error);
+      alert(`❌ ${error.message}`);
+    });
 }
 
 // ===== STRIPE INTEGRATION =====

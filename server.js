@@ -14,6 +14,7 @@ const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWA
 // Fichiers de persistence
 const REVIEWS_FILE = path.join(__dirname, 'reviews.json');
 const USERS_FILE = path.join(__dirname, 'users.json');
+const TEACHER_AUTH_REQUESTS_FILE = path.join(__dirname, 'teacher-authorization-requests.json');
 
 // Configuration Stripe
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
@@ -157,6 +158,40 @@ function saveUsers() {
 
 // Charger les utilisateurs au démarrage
 loadUsers();
+
+// Stockage des demandes d'autorisation professeur
+// Structure: [{ id, email, prenom, nom, requestedSubjects, note, status, createdAt, updatedAt, processedAt, processedBy }]
+let teacherAuthorizationRequests = [];
+
+function loadTeacherAuthorizationRequests() {
+  try {
+    if (fs.existsSync(TEACHER_AUTH_REQUESTS_FILE)) {
+      const data = fs.readFileSync(TEACHER_AUTH_REQUESTS_FILE, 'utf8');
+      teacherAuthorizationRequests = JSON.parse(data);
+      console.log(`✅ ${teacherAuthorizationRequests.length} demandes d'autorisation professeur chargées`);
+    } else {
+      console.log('📝 Aucun fichier de demandes d\'autorisation professeur trouvé, démarrage avec une liste vide');
+    }
+  } catch (error) {
+    console.error('❌ Erreur lors du chargement des demandes d\'autorisation professeur:', error);
+    teacherAuthorizationRequests = [];
+  }
+}
+
+function saveTeacherAuthorizationRequests() {
+  try {
+    fs.writeFileSync(
+      TEACHER_AUTH_REQUESTS_FILE,
+      JSON.stringify(teacherAuthorizationRequests, null, 2),
+      'utf8'
+    );
+    console.log(`💾 ${teacherAuthorizationRequests.length} demandes d'autorisation professeur sauvegardées`);
+  } catch (error) {
+    console.error('❌ Erreur lors de la sauvegarde des demandes d\'autorisation professeur:', error);
+  }
+}
+
+loadTeacherAuthorizationRequests();
 
 // Génère un ID unique pour chaque client
 function generateClientId() {
@@ -580,6 +615,21 @@ function normalizeSubjectName(subject) {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+function isTeacherAuthorizedForSubject(teacher, matiere) {
+  if (!teacher || !matiere) return false;
+
+  const teacherEmail = teacher.email ? String(teacher.email).toLowerCase() : '';
+  if (!teacherEmail) return false;
+
+  const teacherRecord = users[teacherEmail];
+  const authorizedSubjects = teacherRecord?.teacherData?.authorizedSubjects || [];
+  const normalizedTarget = normalizeSubjectName(matiere);
+
+  return authorizedSubjects.some(
+    (subject) => normalizeSubjectName(subject) === normalizedTarget
+  );
+}
+
 /**
  * Notifie tous les professeurs connectés autorisés à enseigner la matière recherchée
  */
@@ -767,6 +817,14 @@ function handleTeacherAvailable(clientId, message) {
   teacher.nom = nom || teacher.nom;
   teacher.name = `${prenom || ''} ${nom || ''}`.trim() || teacher.name;
 
+  if (!isTeacherAuthorizedForSubject(teacher, matiere)) {
+    teacher.ws.send(JSON.stringify({
+      type: 'error',
+      message: `Vous n'êtes pas autorisé à donner des cours de ${matiere}`
+    }));
+    return;
+  }
+
   // Initialiser la liste des professeurs pour cette matière
   if (!availableTeachers.has(matiere)) {
     availableTeachers.set(matiere, []);
@@ -840,8 +898,17 @@ function handleStudentSearchingTeacher(clientId, student) {
     const teacher = connectedUsers.get(teacherClientId);
     
     if (teacher && teacher.ws.readyState === WebSocket.OPEN) {
-      // Match trouvé !
-      createTeacherStudentMatch(teacher, teacherClientId, student, clientId);
+      if (isTeacherAuthorizedForSubject(teacher, matiere)) {
+        // Match trouvé !
+        createTeacherStudentMatch(teacher, teacherClientId, student, clientId);
+      } else {
+        console.log(`⚠️ Professeur ${teacher.name || teacher.email || teacherClientId} ignoré: non autorisé pour ${matiere}`);
+        if (teacherList.length > 0) {
+          handleStudentSearchingTeacher(clientId, student);
+        } else {
+          addStudentToWaitingQueue(clientId, student);
+        }
+      }
     } else {
       // Le professeur n'est plus connecté, réessayer avec le suivant
       if (teacherList.length > 0) {
@@ -1239,6 +1306,215 @@ app.put('/api/admin/teacher/:email/subjects', (req, res) => {
       authorizedSubjects: teacher.teacherData.authorizedSubjects,
       availableSubjects: teacher.teacherData.availableSubjects
     }
+  });
+});
+
+/**
+ * GET /api/admin/teacher-authorization-requests - Récupère les demandes de rendez-vous professeur
+ */
+app.get('/api/admin/teacher-authorization-requests', (req, res) => {
+  const adminEmail = req.query.adminEmail;
+
+  if (!isAdminEmail(adminEmail)) {
+    return res.status(403).json({ success: false, error: 'Accès non autorisé' });
+  }
+
+  const requests = [...teacherAuthorizationRequests].sort((a, b) => {
+    if (a.status === b.status) {
+      return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
+    }
+    if (a.status === 'pending') return -1;
+    if (b.status === 'pending') return 1;
+    return 0;
+  });
+
+  res.json({
+    success: true,
+    requests,
+    pendingCount: requests.filter(r => r.status === 'pending').length
+  });
+});
+
+/**
+ * PUT /api/admin/teacher-authorization-request/:id/status - Met à jour le statut d'une demande
+ */
+app.put('/api/admin/teacher-authorization-request/:id/status', (req, res) => {
+  const adminEmail = req.query.adminEmail;
+  const requestId = req.params.id;
+  const { status } = req.body;
+
+  if (!isAdminEmail(adminEmail)) {
+    return res.status(403).json({ success: false, error: 'Accès non autorisé' });
+  }
+
+  if (!['pending', 'processed'].includes(status)) {
+    return res.status(400).json({ success: false, error: 'Statut invalide' });
+  }
+
+  const request = teacherAuthorizationRequests.find(r => r.id === requestId);
+  if (!request) {
+    return res.status(404).json({ success: false, error: 'Demande non trouvée' });
+  }
+
+  request.status = status;
+  request.updatedAt = new Date().toISOString();
+  request.processedAt = status === 'processed' ? new Date().toISOString() : null;
+  request.processedBy = status === 'processed' ? String(adminEmail).toLowerCase() : null;
+
+  saveTeacherAuthorizationRequests();
+
+  res.json({ success: true, request });
+});
+
+/**
+ * POST /api/admin/teacher - Ajouter un nouveau professeur
+ */
+app.post('/api/admin/teacher', (req, res) => {
+  const adminEmail = req.query.adminEmail;
+  const { email, prenom, nom, authorizedSubjects = [], authorizationRequestId = null } = req.body;
+
+  // Vérifier que l'utilisateur est admin
+  if (!isAdminEmail(adminEmail)) {
+    return res.status(403).json({ success: false, error: 'Accès non autorisé' });
+  }
+
+  // Validation basique
+  if (!email || !prenom || !nom) {
+    return res.status(400).json({ success: false, error: 'Email, prénom et nom sont requis' });
+  }
+
+  const emailLower = String(email).trim().toLowerCase();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(emailLower)) {
+    return res.status(400).json({ success: false, error: 'Adresse email invalide' });
+  }
+
+  const cleanSubjects = Array.isArray(authorizedSubjects)
+    ? [...new Set(authorizedSubjects.map((s) => String(s || '').trim()).filter(Boolean))]
+    : [];
+
+  const existingUser = users[emailLower];
+
+  if (existingUser?.isTeacher) {
+    return res.status(409).json({ success: false, error: 'Ce professeur existe déjà' });
+  }
+
+  const teacherRecord = {
+    ...(existingUser || {}),
+    email: emailLower,
+    prenom: String(prenom).trim(),
+    nom: String(nom).trim(),
+    isTeacher: true,
+    classe: '',
+    subscription: existingUser?.subscription || {
+      type: null,
+      isActive: false
+    },
+    teacherData: {
+      authorizedSubjects: cleanSubjects,
+      availableSubjects: (existingUser?.teacherData?.availableSubjects || []).filter((subject) =>
+        cleanSubjects.includes(subject)
+      ),
+      courses: existingUser?.teacherData?.courses || [],
+      totalEarnings: existingUser?.teacherData?.totalEarnings || 0,
+      rating: existingUser?.teacherData?.rating || null
+    },
+    createdAt: existingUser?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  users[emailLower] = teacherRecord;
+  saveUsers();
+
+  if (authorizationRequestId) {
+    const linkedRequest = teacherAuthorizationRequests.find(r => r.id === authorizationRequestId);
+    if (linkedRequest) {
+      linkedRequest.status = 'processed';
+      linkedRequest.updatedAt = new Date().toISOString();
+      linkedRequest.processedAt = new Date().toISOString();
+      linkedRequest.processedBy = String(adminEmail).toLowerCase();
+      saveTeacherAuthorizationRequests();
+    }
+  }
+
+  console.log(`✅ Professeur ajouté par admin: ${emailLower}`);
+
+  res.json({
+    success: true,
+    message: 'Professeur créé',
+    teacher: {
+      email: teacherRecord.email,
+      prenom: teacherRecord.prenom,
+      nom: teacherRecord.nom,
+      authorizedSubjects: teacherRecord.teacherData.authorizedSubjects,
+      availableSubjects: teacherRecord.teacherData.availableSubjects
+    }
+  });
+});
+
+/**
+ * POST /api/teacher-authorization-request - Créer une demande de rendez-vous pour devenir professeur
+ */
+app.post('/api/teacher-authorization-request', (req, res) => {
+  const { email, prenom, nom, requestedSubjects = [], note = '' } = req.body;
+
+  if (!email || !prenom || !nom) {
+    return res.status(400).json({ success: false, error: 'Email, prénom et nom sont requis' });
+  }
+
+  const emailLower = String(email).trim().toLowerCase();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(emailLower)) {
+    return res.status(400).json({ success: false, error: 'Adresse email invalide' });
+  }
+
+  const cleanSubjects = Array.isArray(requestedSubjects)
+    ? [...new Set(requestedSubjects.map((s) => String(s || '').trim()).filter(Boolean))]
+    : [];
+
+  // Éviter les doublons: une seule demande en attente par email
+  const existingPending = teacherAuthorizationRequests.find(
+    (r) => r.email === emailLower && r.status === 'pending'
+  );
+
+  if (existingPending) {
+    existingPending.prenom = String(prenom).trim();
+    existingPending.nom = String(nom).trim();
+    existingPending.requestedSubjects = cleanSubjects;
+    existingPending.note = String(note || '').trim();
+    existingPending.updatedAt = new Date().toISOString();
+    saveTeacherAuthorizationRequests();
+
+    return res.json({
+      success: true,
+      message: 'Demande déjà en attente, mise à jour effectuée',
+      request: existingPending
+    });
+  }
+
+  const request = {
+    id: `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    email: emailLower,
+    prenom: String(prenom).trim(),
+    nom: String(nom).trim(),
+    requestedSubjects: cleanSubjects,
+    note: String(note || '').trim(),
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    processedAt: null,
+    processedBy: null
+  };
+
+  teacherAuthorizationRequests.push(request);
+  saveTeacherAuthorizationRequests();
+
+  console.log(`📩 Nouvelle demande d'autorisation professeur: ${request.email}`);
+
+  res.json({
+    success: true,
+    message: 'Demande envoyée aux administrateurs',
+    request
   });
 });
 

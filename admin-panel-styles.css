@@ -98,6 +98,31 @@
   flex-wrap: wrap;
 }
 
+.add-teacher-form-card {
+  background: #f8fafc;
+  border: 2px dashed #cbd5e0;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.add-teacher-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 12px;
+  align-items: center;
+}
+
+.add-teacher-form button {
+  justify-content: center;
+}
+
+@media (max-width: 900px) {
+  .add-teacher-form {
+    grid-template-columns: 1fr;
+  }
+}
+
 .search-input,
 .filter-select {
   padding: 12px 16px;
@@ -128,6 +153,77 @@
 /* ===== LISTE DES PROFESSEURS ===== */
 .teachers-list-container {
   min-height: 300px;
+}
+
+.authorization-requests-container {
+  min-height: 120px;
+}
+
+.authorization-requests-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.authorization-request-card {
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  background: #fff;
+}
+
+.authorization-request-card.pending {
+  border-color: #f6ad55;
+  background: #fffaf0;
+}
+
+.authorization-request-card.processed {
+  border-color: #9ae6b4;
+  background: #f0fff4;
+}
+
+.request-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.request-status {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+
+.request-status.pending {
+  background: #fbd38d;
+  color: #7b341e;
+}
+
+.request-status.processed {
+  background: #9ae6b4;
+  color: #22543d;
+}
+
+.request-subjects {
+  margin: 10px 0;
+  color: #2d3748;
+  font-size: 13px;
+}
+
+.request-meta {
+  color: #718096;
+  font-size: 12px;
+  margin: 8px 0 12px 0;
+}
+
+.request-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .teachers-grid {
