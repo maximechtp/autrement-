@@ -1358,13 +1358,17 @@ document.addEventListener("DOMContentLoaded", () => {
   goTo("home");
 
   document.body.addEventListener("click", (event) => {
-    const target = event.target;
-    const action = target.dataset.action;
-    const param = target.dataset.param;
+    try {
+      const clicked = event.target.closest('[data-action]');
+      if (!clicked) return;
 
-    if (!action) return;
+      const target = clicked;
+      const action = target.dataset.action;
+      const param = target.dataset.param;
 
-    console.log("CLICK detected on action:", action, param);
+      if (!action) return;
+
+      console.log("CLICK detected on action:", action, param);
 
     switch (action) {
       case "goTo":
@@ -1643,6 +1647,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       default:
         console.warn("Action inconnue :", action);
+    }
+    } catch (err) {
+      console.error('Error handling global click:', err);
     }
   });
 
