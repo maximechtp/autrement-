@@ -542,31 +542,31 @@
     <!-- Options de langue -->
     <div class="language-options">
       <div class="language-card" data-lang="Français">
-        <div class="language-flag">🇫🇷</div>
+        <div class="language-flag" aria-hidden="true" style="font-size:42px; font-weight:700;">FR</div>
         <div class="language-name">Français</div>
         <div class="language-check">OK</div>
       </div>
       
       <div class="language-card" data-lang="Anglais">
-        <div class="language-flag">🇬🇧</div>
+        <div class="language-flag" aria-hidden="true" style="font-size:42px; font-weight:700;">GB</div>
         <div class="language-name">Anglais</div>
         <div class="language-check">OK</div>
       </div>
       
       <div class="language-card" data-lang="Espagnol">
-        <div class="language-flag">🇪🇸</div>
+        <div class="language-flag" aria-hidden="true" style="font-size:42px; font-weight:700;">ES</div>
         <div class="language-name">Espagnol</div>
         <div class="language-check">OK</div>
       </div>
       
       <div class="language-card" data-lang="Allemand">
-        <div class="language-flag">🇩🇪</div>
+        <div class="language-flag" aria-hidden="true" style="font-size:42px; font-weight:700;">DE</div>
         <div class="language-name">Allemand</div>
         <div class="language-check">OK</div>
       </div>
       
       <div class="language-card" data-lang="Italien">
-        <div class="language-flag">🇮🇹</div>
+        <div class="language-flag" aria-hidden="true" style="font-size:42px; font-weight:700;">IT</div>
         <div class="language-name">Italien</div>
         <div class="language-check">OK</div>
       </div>
@@ -595,6 +595,26 @@
         </svg>
         Retour
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal pour demander l'autorisation de matières -->
+<div id="modal-teacher-subjects" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Quelles matières souhaitez-vous enseigner ?</h3>
+      <button class="modal-close" id="close-subjects-modal">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-description">Sélectionnez une ou plusieurs matières parmi la liste disponible</p>
+      <div id="subjects-checklist" class="subjects-checklist">
+        <!-- Les matières apparaîtront ici -->
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="submit-teacher-subjects" class="btn-action btn-primary">📋 Envoyer la demande</button>
+      <button id="cancel-teacher-subjects" class="btn-action btn-secondary">Annuler</button>
     </div>
   </div>
 </div>
