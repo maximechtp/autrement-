@@ -1315,6 +1315,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Setup back button
   setupBackButton();
+
+  // Ensure main option buttons work even if global handler misses clicks
+  try {
+    const optionButtons = document.querySelectorAll('[data-action="chooseOption"]');
+    if (optionButtons && optionButtons.length) {
+      optionButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const param = btn.dataset.param || btn.getAttribute('data-param');
+          try {
+            handleChooseOption(param);
+          } catch (err) {
+            console.error('Error in direct chooseOption handler:', err);
+          }
+        });
+      });
+    }
+  } catch (err) {
+    console.warn('Could not attach direct handlers to option buttons:', err);
+  }
   
   // Setup footer scroll detection
   initializeFooterScroll();
@@ -1356,6 +1376,71 @@ document.addEventListener("DOMContentLoaded", () => {
   // Afficher la page d'accueil par défaut
   console.log('📱 Affichage page d\'accueil');
   goTo("home");
+
+  /**
+   * Handler réutilisable pour les boutons d'option (cours, debat, chat).
+   * Peut être appelé depuis le global click handler ou directement depuis
+   * des listeners attachés aux boutons pour garantir la réactivité.
+   */
+  function handleChooseOption(param) {
+    console.log("handleChooseOption called with:", param);
+    sessionData.option = param;
+
+    console.log("chooseOption clicked with param:", param);
+    console.log("User logged in:", sessionData.isLoggedIn);
+    console.log("User email:", sessionData.email);
+
+    const currentUser = userDB.getCurrentUser();
+    let isAdmin = false;
+    if (currentUser && typeof stripePayment !== 'undefined') {
+      const adminEmails = ['maxime.chantepiee@gmail.com', 'jan.smid14@gmail.com'];
+      isAdmin = adminEmails.includes((currentUser.email || '').toLowerCase());
+
+      const canUse = stripePayment.canUseFeature(
+        param === 'chat' ? 'ai' : 
+        param === 'debat' ? 'ai' : 
+        'book_classes'
+      );
+
+      if (!isAdmin && !canUse && param === 'cours') {
+        const access = stripePayment.getSubscriptionAccess(
+          currentUser.subscription.isActive ? currentUser.subscription.type : 'gratuit'
+        );
+        if (!access.canBookClasses) {
+          console.log('❌ Accès refusé: cours réservés aux abonnés');
+          stripePayment.showUpgradeModal('book_classes');
+          return;
+        }
+      }
+    }
+
+    if (!sessionData.isSubscribed) {
+      let activityType = param === 'chat' ? 'chat' : (param === 'debat' ? 'debat' : 'cours');
+      const emailToCheck = sessionData.email || 'anonymous_user';
+      const usageStatus = checkUsageLimit(emailToCheck, activityType);
+      console.log('Usage status:', usageStatus);
+
+      if (!usageStatus.allowed) {
+        showUsageLimitPage(activityType);
+        return;
+      }
+
+      if (!isAdmin) {
+        incrementUsage(emailToCheck, activityType);
+        if (usageStatus.remaining <= 1) {
+          const typeNames = { chat: 'JustSpeak', debat: 'Clash', cours: 'Cours' };
+          alert(`Attention: Il vous reste ${usageStatus.remaining} essai gratuit pour ${typeNames[activityType]}.`);
+        }
+      }
+    }
+
+    if (param === 'cours') {
+      openConfirmation(param);
+    } else if (param === 'chat' || param === 'debat') {
+      goTo('langue-selection');
+      updateLanguageTitle(param);
+    }
+  }
 
   document.body.addEventListener("click", (event) => {
     try {
@@ -1414,82 +1499,7 @@ document.addEventListener("DOMContentLoaded", () => {
         break;
 
       case "chooseOption":
-        console.log("chooseOption clicked with param:", param);
-        console.log("User logged in:", sessionData.isLoggedIn);
-        console.log("User email:", sessionData.email);
-        
-        // Vérifier les accès selon le type d'abonnement
-        const currentUser = userDB.getCurrentUser();
-        if (currentUser && typeof stripePayment !== 'undefined') {
-          // Administrators bypass subscription/usage checks
-          const adminEmails = ['maxime.chantepiee@gmail.com', 'jan.smid14@gmail.com'];
-          const isAdmin = currentUser && adminEmails.includes((currentUser.email || '').toLowerCase());
-
-          const canUse = stripePayment.canUseFeature(
-            param === 'chat' ? 'ai' : 
-            param === 'debat' ? 'ai' : 
-            'book_classes'
-          );
-
-          // If trying to book a course, ensure the user can book classes unless they're admin
-          if (!isAdmin && !canUse && param === 'cours') {
-            // Pour les cours, vérifier l'accès spécifique
-            const access = stripePayment.getSubscriptionAccess(
-              currentUser.subscription.isActive ? currentUser.subscription.type : 'gratuit'
-            );
-            
-            if (!access.canBookClasses) {
-              console.log('❌ Accès refusé: cours réservés aux abonnés');
-              stripePayment.showUpgradeModal('book_classes');
-              break;
-            }
-          }
-        }
-        
-        // Vérifier la limite d'utilisation pour les utilisateurs gratuits
-        if (!sessionData.isSubscribed) {
-          // Déterminer le type d'activité
-          let activityType = param === 'chat' ? 'chat' : (param === 'debat' ? 'debat' : 'cours');
-          
-          console.log("Checking usage limit for:", activityType);
-          
-          // Utiliser un email par défaut si l'utilisateur n'est pas connecté
-          const emailToCheck = sessionData.email || 'anonymous_user';
-          
-          const usageStatus = checkUsageLimit(emailToCheck, activityType);
-          console.log("Usage status:", usageStatus);
-          
-          if (!usageStatus.allowed) {
-            console.log("Usage limit reached, showing limit page");
-            showUsageLimitPage(activityType);
-            break;
-          }
-          
-          // Incrémenter le compteur (ne pas incrémenter pour les admins)
-          if (!isAdmin) {
-            incrementUsage(emailToCheck, activityType);
-
-            // Afficher un message sur les essais restants
-            if (usageStatus.remaining <= 1) {
-              const typeNames = { chat: 'JustSpeak', debat: 'Clash', cours: 'Cours' };
-              alert(`Attention: Il vous reste ${usageStatus.remaining} essai gratuit pour ${typeNames[activityType]}.`);
-            }
-          }
-        }
-        
-        // For courses, show option confirmation first
-        if (param === "cours") {
-          console.log("Course option selected, opening confirmation modal");
-          sessionData.option = param;
-          // Ouvrir directement la modal de confirmation pour choisir matière et niveau
-          openConfirmation(param);
-        } else if (param === "chat" || param === "debat") {
-          // For chat and debate, show language selection first
-          console.log("Chat/Debat option selected, going to language selection");
-          sessionData.option = param;
-          goTo("langue-selection");
-          updateLanguageTitle(param);
-        }
+        handleChooseOption(param);
         break;
 
       case "continueFromOption":
