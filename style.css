@@ -1914,6 +1914,13 @@ h1 {
   margin-bottom: 15px;
 }
 
+.language-flag-img {
+  display: block;
+  max-width: 96px;
+  height: auto;
+  margin: 0 auto 12px;
+}
+
 .language-name {
   font-size: 18px;
   font-weight: 500;
