@@ -1678,11 +1678,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const param = clicked.dataset.param;
       if (!action) return;
 
-      // mark as dispatched so bubble handler skips duplicate
-      clicked.dataset._dispatched = '1';
-
-      // Try dispatching safely
-      dispatchAction(action, param, clicked);
+      // Try dispatching safely; only mark as dispatched if handled
+      try {
+        const handled = dispatchAction(action, param, clicked);
+        if (handled) clicked.dataset._dispatched = '1';
+      } catch (e) {
+        console.warn('Capture dispatcher dispatch error', e);
+      }
     } catch (e) {
       console.warn('Capture dispatcher error', e);
     }
@@ -4315,6 +4317,15 @@ function clampFloatingElements() {
       .filter(el => {
         const style = getComputedStyle(el);
         if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) return false;
+        // Never clamp header/navigation controls or explicitly opted-out elements
+        try {
+          if (el.closest && el.closest('#header-nav')) return false;
+        } catch (e) {}
+        if (el.dataset && el.dataset.noClamp === '1') return false;
+        const skipClasses = ['btn-bubble', 'btn-home', 'user-avatar'];
+        for (const c of skipClasses) {
+          if (el.classList && el.classList.contains(c)) return false;
+        }
         return style.position === 'fixed' || style.position === 'absolute';
       });
 
