@@ -563,6 +563,20 @@
   background: #f0f4ff;
 }
 
+/* Visuel pour matières cochées vs non cochées */
+.subject-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+.subject-checkbox input[type="checkbox"] + span {
+  color: #4a5568;
+  transition: color 0.2s, font-weight 0.2s;
+}
+.subject-checkbox input[type="checkbox"]:checked + span {
+  color: #1a202c;
+  font-weight: 700;
+}
+
 .subject-checkbox input {
   cursor: pointer;
   accent-color: #667eea;

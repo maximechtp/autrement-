@@ -2237,6 +2237,16 @@ function showClashMatch() {
   
   // Masquer le message d'attente au début
   document.getElementById('clash-waiting-acceptance').classList.add('hidden');
+
+  // Réafficher les boutons Accepter / Refuser au cas où ils auraient été masqués précédemment
+  try {
+    const acceptBtn = document.querySelector('[data-action="acceptClashMatch"]');
+    const refuseBtn = document.querySelector('[data-action="refuseClashMatch"]');
+    if (acceptBtn) acceptBtn.style.display = '';
+    if (refuseBtn) refuseBtn.style.display = '';
+  } catch (e) {
+    console.warn('Impossible de réafficher les boutons clash:', e);
+  }
   
   goTo("clash-match");
 }
@@ -2245,8 +2255,14 @@ function acceptClashMatch() {
   console.log('✅ Acceptation du Clash par l\'utilisateur');
   
   // Masquer les boutons et afficher le message d'attente
-  document.querySelector('[data-action="acceptClashMatch"]').style.display = 'none';
-  document.querySelector('[data-action="refuseClashMatch"]').style.display = 'none';
+  try {
+    const acceptBtn = document.querySelector('[data-action="acceptClashMatch"]');
+    const refuseBtn = document.querySelector('[data-action="refuseClashMatch"]');
+    if (acceptBtn) acceptBtn.style.display = 'none';
+    if (refuseBtn) refuseBtn.style.display = 'none';
+  } catch (e) {
+    console.warn('Erreur en masquant les boutons accept/refuse:', e);
+  }
   document.getElementById('clash-waiting-acceptance').classList.remove('hidden');
   
   // Envoyer l'acceptation au serveur via WebSocket
@@ -4231,3 +4247,54 @@ if (document.readyState === 'loading') {
   generateReviews();
   initReviewForm();
 }
+
+/* ---------- Keep floating elements inside viewport ---------- */
+function clampFloatingElements() {
+  try {
+    const margin = 8; // px
+    // look for elements that are fixed or absolute and visible
+    const candidates = Array.from(document.querySelectorAll('body *'))
+      .filter(el => el instanceof HTMLElement)
+      .filter(el => {
+        const style = getComputedStyle(el);
+        if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) return false;
+        return style.position === 'fixed' || style.position === 'absolute';
+      });
+
+    candidates.forEach(el => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) return;
+
+      let dx = 0, dy = 0;
+      if (rect.left < margin) dx = margin - rect.left;
+      if (rect.right > window.innerWidth - margin) dx = (window.innerWidth - margin) - rect.right;
+      if (rect.top < margin) dy = margin - rect.top;
+      if (rect.bottom > window.innerHeight - margin) dy = (window.innerHeight - margin) - rect.bottom;
+
+      if (dx !== 0 || dy !== 0) {
+        const style = getComputedStyle(el);
+        if (style.transform && style.transform !== 'none') {
+          el.style.transform = 'none';
+        }
+
+        // compute numeric left/top (fall back to offset if 'auto')
+        const curLeft = parseFloat(el.style.left || style.left) || el.offsetLeft || 0;
+        const curTop = parseFloat(el.style.top || style.top) || el.offsetTop || 0;
+
+        if (style.position === 'fixed' || style.position === 'absolute') {
+          el.style.left = (curLeft + dx) + 'px';
+          el.style.top = (curTop + dy) + 'px';
+        }
+      }
+    });
+  } catch (err) {
+    console.warn('clampFloatingElements error', err);
+  }
+}
+
+// Observe DOM mutations and window resizes to keep floating elements in view
+const clampObserver = new MutationObserver(() => clampFloatingElements());
+clampObserver.observe(document.body, { childList: true, subtree: true, attributes: true });
+window.addEventListener('resize', clampFloatingElements);
+window.addEventListener('orientationchange', clampFloatingElements);
+setTimeout(clampFloatingElements, 300);

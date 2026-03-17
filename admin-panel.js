@@ -405,17 +405,28 @@ function openEditModal(teacherEmail) {
   document.getElementById('modal-teacher-info').textContent = 
     `Matières autorisées pour ${teacher.prenom} ${teacher.nom} (${teacher.email})`;
 
-  // Créer la grille de sélection des matières
+  // S'assurer que la liste des matières à afficher inclut celles autorisées
+  // (utile si appState.allSubjects n'incluait pas encore certaines matières)
+  (teacher.authorizedSubjects || []).forEach(s => appState.allSubjects.add(s));
+
+  // Créer la grille de sélection des matières (toutes les matières disponibles)
   const grid = document.getElementById('modal-subjects-grid');
   let html = '';
-  
-  Array.from(appState.allSubjects).sort().forEach(subject => {
+
+  const subjectsSet = new Set(Array.from(appState.allSubjects || []));
+  // garantir la présence des matières autorisées
+  (teacher.authorizedSubjects || []).forEach(s => subjectsSet.add(s));
+
+  // Légende : coché = autorisé, décoché = non autorisé
+  html += `<p style="font-size:13px;color:#718096;margin-bottom:12px;">Cochez les matières autorisées pour ce professeur (non cochées = non autorisées)</p>`;
+
+  Array.from(subjectsSet).sort().forEach(subject => {
     const isSelected = appState.selectedSubjects.includes(subject);
     html += `
       <label class="subject-checkbox">
-        <input 
-          type="checkbox" 
-          value="${subject}" 
+        <input
+          type="checkbox"
+          value="${subject}"
           ${isSelected ? 'checked' : ''}
           class="subject-input"
         />
