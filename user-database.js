@@ -26,49 +26,53 @@ class UserDatabase {
     try {
       const userId = this.generateUserId(userData.email);
       
-      // Structure complète de l'utilisateur
+      // Récupérer l'enregistrement existant pour fusionner proprement
+      const allUsers = this.getAllUsers();
+      const existing = allUsers[userId] || {};
+
+      // Structure complète de l'utilisateur (fusionne champs nouveaux et existants)
       const userRecord = {
         id: userId,
-        email: userData.email.toLowerCase(),
-        prenom: userData.prenom || '',
-        nom: userData.nom || '',
-        classe: userData.classe || '',
-        isTeacher: userData.isTeacher || false,
-        photoURL: userData.photoURL || null,
-        
-        // Abonnement
+        email: (userData.email || existing.email || '').toLowerCase(),
+        prenom: userData.prenom !== undefined ? userData.prenom : (existing.prenom || ''),
+        nom: userData.nom !== undefined ? userData.nom : (existing.nom || ''),
+        classe: userData.classe !== undefined ? userData.classe : (existing.classe || ''),
+        isTeacher: userData.isTeacher !== undefined ? !!userData.isTeacher : !!existing.isTeacher,
+        photoURL: userData.photoURL !== undefined ? userData.photoURL : (existing.photoURL || null),
+
+        // Abonnement (conserver ce qui existe sauf remplacement explicite)
         subscription: {
-          type: userData.subscriptionType || null, // 'standard', 'premium', null
-          isActive: userData.isSubscribed || false,
-          startDate: userData.subscriptionStartDate || null,
-          endDate: userData.subscriptionEndDate || null,
-          stripeCustomerId: userData.stripeCustomerId || null
+          type: userData.subscriptionType !== undefined ? userData.subscriptionType : (existing.subscription && existing.subscription.type) || null,
+          isActive: userData.isSubscribed !== undefined ? !!userData.isSubscribed : !!(existing.subscription && existing.subscription.isActive),
+          startDate: userData.subscriptionStartDate !== undefined ? userData.subscriptionStartDate : (existing.subscription && existing.subscription.startDate) || null,
+          endDate: userData.subscriptionEndDate !== undefined ? userData.subscriptionEndDate : (existing.subscription && existing.subscription.endDate) || null,
+          stripeCustomerId: userData.stripeCustomerId !== undefined ? userData.stripeCustomerId : (existing.subscription && existing.subscription.stripeCustomerId) || null
         },
-        
-        // Pour les professeurs
-        teacherData: userData.isTeacher ? {
-          authorizedSubjects: userData.authorizedSubjects || [],
-          availableSubjects: userData.availableSubjects || [],
-          courses: userData.courses || [],
-          totalEarnings: userData.totalEarnings || 0,
-          rating: userData.rating || null
+
+        // Pour les professeurs : fusionner si nécessaire
+        teacherData: (userData.isTeacher || existing.isTeacher) ? {
+          authorizedSubjects: (userData.authorizedSubjects !== undefined) ? userData.authorizedSubjects : (existing.teacherData && existing.teacherData.authorizedSubjects) || [],
+          availableSubjects: (userData.availableSubjects !== undefined) ? userData.availableSubjects : (existing.teacherData && existing.teacherData.availableSubjects) || [],
+          courses: (userData.courses !== undefined) ? userData.courses : (existing.teacherData && existing.teacherData.courses) || [],
+          totalEarnings: (userData.totalEarnings !== undefined) ? userData.totalEarnings : (existing.teacherData && existing.teacherData.totalEarnings) || 0,
+          rating: (userData.rating !== undefined) ? userData.rating : (existing.teacherData && existing.teacherData.rating) || null,
+          createdAt: (existing.teacherData && existing.teacherData.createdAt) || new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         } : null,
-        
-        // Géolocalisation approximative (~100km)
-        location: userData.location || null, // { lat, lng, isApproximate, timestamp }
-        
-        // Métadonnées
-        createdAt: userData.createdAt || new Date().toISOString(),
-        lastLogin: new Date().toISOString(),
+
+        location: userData.location !== undefined ? userData.location : (existing.location || null),
+
+        // Métadonnées (préserver createdAt si existant)
+        createdAt: existing.createdAt || userData.createdAt || new Date().toISOString(),
+        lastLogin: userData.lastLogin || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
 
       // Sauvegarder dans localStorage (simulation base de données)
-      const allUsers = this.getAllUsers();
       allUsers[userId] = userRecord;
       localStorage.setItem(this.USERS_KEY, JSON.stringify(allUsers));
 
-      console.log('✅ Utilisateur sauvegardé:', userId);
+      console.log('✅ Utilisateur sauvegardé (fusion):', userId);
       return userRecord;
     } catch (error) {
       console.error('❌ Erreur sauvegarde utilisateur:', error);
@@ -91,8 +95,8 @@ class UserDatabase {
 
   /**
    * Récupère un utilisateur par email
-   */
-  getUserByEmail(email) {
+          if (!user) {
+            console.error('Utilisateur non trouvé:', email);
     if (!email) return null;
     
     const userId = this.generateUserId(email);
