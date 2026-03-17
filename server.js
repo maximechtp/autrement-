@@ -1244,6 +1244,17 @@ app.get('/api/admin/subjects', (req, res) => {
     }
   });
 
+  // Inclure aussi les matières proposées dans les demandes d'autorisation (propositions d'étudiants/professeurs)
+  if (Array.isArray(teacherAuthorizationRequests) && teacherAuthorizationRequests.length) {
+    teacherAuthorizationRequests.forEach(req => {
+      if (Array.isArray(req.requestedSubjects)) {
+        req.requestedSubjects.forEach(s => {
+          if (s) allSubjects.add(s);
+        });
+      }
+    });
+  }
+
   res.json({
     success: true,
     subjects: Array.from(allSubjects).sort()
