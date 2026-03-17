@@ -1417,13 +1417,18 @@ document.addEventListener("DOMContentLoaded", () => {
         // Vérifier les accès selon le type d'abonnement
         const currentUser = userDB.getCurrentUser();
         if (currentUser && typeof stripePayment !== 'undefined') {
+          // Administrators bypass subscription/usage checks
+          const adminEmails = ['maxime.chantepiee@gmail.com', 'jan.smid14@gmail.com'];
+          const isAdmin = currentUser && adminEmails.includes((currentUser.email || '').toLowerCase());
+
           const canUse = stripePayment.canUseFeature(
             param === 'chat' ? 'ai' : 
             param === 'debat' ? 'ai' : 
             'book_classes'
           );
-          
-          if (!canUse && param === 'cours') {
+
+          // If trying to book a course, ensure the user can book classes unless they're admin
+          if (!isAdmin && !canUse && param === 'cours') {
             // Pour les cours, vérifier l'accès spécifique
             const access = stripePayment.getSubscriptionAccess(
               currentUser.subscription.isActive ? currentUser.subscription.type : 'gratuit'
@@ -1456,13 +1461,15 @@ document.addEventListener("DOMContentLoaded", () => {
             break;
           }
           
-          // Incrémenter le compteur
-          incrementUsage(emailToCheck, activityType);
-          
-          // Afficher un message sur les essais restants
-          if (usageStatus.remaining <= 1) {
-            const typeNames = { chat: 'JustSpeak', debat: 'Clash', cours: 'Cours' };
-            alert(`Attention: Il vous reste ${usageStatus.remaining} essai gratuit pour ${typeNames[activityType]}.`);
+          // Incrémenter le compteur (ne pas incrémenter pour les admins)
+          if (!isAdmin) {
+            incrementUsage(emailToCheck, activityType);
+
+            // Afficher un message sur les essais restants
+            if (usageStatus.remaining <= 1) {
+              const typeNames = { chat: 'JustSpeak', debat: 'Clash', cours: 'Cours' };
+              alert(`Attention: Il vous reste ${usageStatus.remaining} essai gratuit pour ${typeNames[activityType]}.`);
+            }
           }
         }
         
@@ -1586,18 +1593,24 @@ document.addEventListener("DOMContentLoaded", () => {
         break;
 
       case "submitRating":
+        // Enregistrer la note donnée pour le partenaire (si présent)
+        try {
+          submitCallRating();
+        } catch (e) {
+          console.warn('Erreur lors de l\'enregistrement de la note:', e);
+        }
+
         // Afficher l'invitation Google Review après l'évaluation
         setTimeout(() => {
           showGoogleReviewPrompt();
         }, 500);
-        
-        // Rediriger vers la page des abonnements après avoir terminé
+
+        // Rediriger vers le profil utilisateur ou l'accueil
         if (sessionData.isLoggedIn) {
           showUserProfile();
         } else {
           goTo("home");
         }
-        // Ne pas réinitialiser la session pour garder les données utilisateur
         break;
 
       case "startProfWaiting":
@@ -2729,15 +2742,79 @@ function copyToClipboard() {
 }
 
 function setRating(rating) {
-  console.log("Rating given:", rating);
-  const stars = document.querySelectorAll("#stars span");
-  stars.forEach((star, index) => {
-    if (index < rating) {
-      star.style.color = "gold";
+  const r = parseInt(rating, 10) || 0;
+  console.log("Rating given:", r);
+  // Cibler les boutons (dans la page #rating les étoiles sont des <button>)
+  const stars = document.querySelectorAll("#stars button");
+  if (stars && stars.length) {
+    stars.forEach((star, index) => {
+      if (index < r) {
+        star.style.color = "#fbbf24"; // gold
+        star.style.transform = 'scale(1.15)';
+      } else {
+        star.style.color = "#a0aec0"; // gray
+        star.style.transform = 'scale(1)';
+      }
+    });
+  }
+
+  // Mémoriser la note en attente (sera envoyée au submit)
+  sessionData.pendingRating = r;
+}
+
+/**
+ * Enregistre la note du prochain call pour le partenaire associé à la session.
+ * Stocke localement dans `lokin_partner_ratings` (démo sans backend/Firebase).
+ */
+function submitCallRating() {
+  const rating = sessionData.pendingRating || 0;
+  if (!rating) {
+    alert('Veuillez sélectionner une note avant de soumettre.');
+    return;
+  }
+
+  const partnerEmail = sessionData.partnerEmail || sessionData.partnerEmailFound || null;
+
+  const record = {
+    rating: rating,
+    from: sessionData.email || 'anonymous',
+    date: new Date().toISOString()
+  };
+
+  try {
+    const key = 'lokin_partner_ratings';
+    const raw = localStorage.getItem(key);
+    const all = raw ? JSON.parse(raw) : {};
+
+    if (partnerEmail) {
+      const normalized = partnerEmail.toLowerCase();
+      all[normalized] = all[normalized] || [];
+      all[normalized].push(record);
+      localStorage.setItem(key, JSON.stringify(all));
+
+      // Mettre à jour l'affichage immédiat si le profil du partenaire est visible
+      try {
+        // calculer moyenne locale
+        const arr = all[normalized];
+        const sum = arr.reduce((s, r) => s + (r.rating || 0), 0);
+        const avg = (sum / arr.length).toFixed(1);
+        const partnerRatingEls = document.querySelectorAll('#partner-rating, #profile-rating, #prof-avg-score');
+        partnerRatingEls.forEach(el => { if (el) el.textContent = avg; });
+      } catch (err) {
+        console.warn('Impossible de mettre à jour l\'UI du partenaire:', err);
+      }
     } else {
-      star.style.color = "gray";
+      // Si pas de partenaire connu, stocker globalement sous "anonymous"
+      all['anonymous'] = all['anonymous'] || [];
+      all['anonymous'].push(record);
+      localStorage.setItem(key, JSON.stringify(all));
     }
-  });
+
+    // Nettoyer la note en attente
+    sessionData.pendingRating = 0;
+  } catch (error) {
+    console.error('Erreur sauvegarde note:', error);
+  }
 }
 
 function resetSession() {
@@ -3924,49 +4001,96 @@ function loadAuthorizedMatieres() {
   }
 }
 
-function demanderAutorisationMatieres() {
+async function demanderAutorisationMatieres() {
   if (!sessionData.isLoggedIn || !sessionData.email) {
     alert('⚠️ Veuillez vous connecter pour envoyer une demande.');
     return;
   }
 
-  const subjectsRaw = prompt(
-    'Quelles matières souhaitez-vous enseigner ?\n\nSéparez-les par des virgules (ex: Mathématiques, Physique, Anglais).',
-    ''
-  );
+  try {
+    // Charger les matières disponibles
+    const subjectsResponse = await fetch(`${API_BASE_URL}/api/admin/subjects?adminEmail=${encodeURIComponent('maxime.chantepiee@gmail.com')}`);
+    const subjectsData = await subjectsResponse.json();
+    const availableSubjects = subjectsData.subjects || [];
 
-  const requestedSubjects = (subjectsRaw || '')
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
+    // Afficher la modal avec les matières
+    showTeacherSubjectsModal(availableSubjects);
+  } catch (error) {
+    console.error('❌ Erreur chargement matières:', error);
+    alert('❌ Impossible de charger les matières disponibles');
+  }
+}
 
-  const note = `Demande envoyée depuis l'espace professeur le ${new Date().toLocaleString('fr-FR')}`;
+function showTeacherSubjectsModal(subjects) {
+  const modal = document.getElementById('modal-teacher-subjects');
+  const checklistContainer = document.getElementById('subjects-checklist');
+  const submitBtn = document.getElementById('submit-teacher-subjects');
+  const cancelBtn = document.getElementById('cancel-teacher-subjects');
+  const closeBtn = document.getElementById('close-subjects-modal');
 
-  fetch(`${API_BASE_URL}/api/teacher-authorization-request`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      email: sessionData.email,
-      prenom: sessionData.prenom || '',
-      nom: sessionData.nom || '',
-      requestedSubjects,
-      note
-    })
-  })
-    .then(async (response) => {
+  // Remplir la liste des matières
+  checklistContainer.innerHTML = '';
+  subjects.sort().forEach(subject => {
+    const label = document.createElement('label');
+    label.className = 'subject-checkbox-label';
+    label.innerHTML = `
+      <input type="checkbox" class="teacher-subject-checkbox" value="${subject}">
+      <span>${subject}</span>
+    `;
+    checklistContainer.appendChild(label);
+  });
+
+  // Afficher la modal
+  modal.classList.remove('hidden');
+
+  // Gérer la soumission
+  const handleSubmit = async () => {
+    const selectedCheckboxes = checklistContainer.querySelectorAll('.teacher-subject-checkbox:checked');
+    const requestedSubjects = Array.from(selectedCheckboxes).map(cb => cb.value);
+
+    if (requestedSubjects.length === 0) {
+      alert('⚠️ Veuillez sélectionner au moins une matière');
+      return;
+    }
+
+    const note = `Demande envoyée depuis l'espace professeur le ${new Date().toLocaleString('fr-FR')}`;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/teacher-authorization-request`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: sessionData.email,
+          prenom: sessionData.prenom || '',
+          nom: sessionData.nom || '',
+          requestedSubjects,
+          note
+        })
+      });
+
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || 'Erreur lors de l\'envoi de la demande');
       }
 
-      alert('✅ Votre demande a été envoyée à l\'administration. Vous serez contacté pour le rendez-vous.');
-    })
-    .catch((error) => {
+      alert('✅ Votre demande a été envoyée à l\'administration.\n\nMatières sélectionnées: ' + requestedSubjects.join(', ') + '\n\nVous serez contacté pour le rendez-vous.');
+      modal.classList.add('hidden');
+    } catch (error) {
       console.error('❌ Erreur demande autorisation professeur:', error);
       alert(`❌ ${error.message}`);
-    });
+    }
+  };
+
+  const handleCancel = () => {
+    modal.classList.add('hidden');
+  };
+
+  // Ajouter les event listeners
+  submitBtn.onclick = handleSubmit;
+  cancelBtn.onclick = handleCancel;
+  closeBtn.onclick = handleCancel;
 }
 
 // ===== STRIPE INTEGRATION =====

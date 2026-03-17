@@ -1,0 +1,35 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "commit-and-push",
+			"type": "shell",
+			"command": "git commit -m \"feat: admin panel + statistiques élève\" && git push origin main",
+			"isBackground": false
+		},
+		{
+			"label": "fix-admin-button-redirect",
+			"type": "shell",
+			"command": "git add script.js admin-panel.js && git commit -m \"fix: empêcher la redirection accueil depuis le bouton admin\" && git push origin main",
+			"isBackground": false
+		},
+		{
+			"label": "push-ui-refresh-eleve-stats",
+			"type": "shell",
+			"command": "git add style.css student-stats.css && git commit -m \"style: refonte visuelle accueil élève et cartes statistiques\" && git push origin main",
+			"isBackground": false
+		},
+		{
+			"label": "push-softer-ui-palette",
+			"type": "shell",
+			"command": "git add style.css student-stats.css && git commit -m \"style: palette sobre et premium pour accueil + stats\" && git push origin main",
+			"isBackground": false
+		},
+		{
+			"label": "push-course-search-notifications",
+			"type": "shell",
+			"command": "git add server.js script.js && git commit -m \"feat: notifier les profs autorisés lors d'une recherche de cours\" && git push origin main",
+			"isBackground": false
+		}
+	]
+}
