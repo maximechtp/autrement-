@@ -1449,6 +1449,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const target = clicked;
       const action = target.dataset.action;
+      // If this action was already handled in capture phase, skip to avoid double-run
+      if (target.dataset._dispatched === '1') {
+        delete target.dataset._dispatched;
+        return;
+      }
       const param = target.dataset.param;
 
       if (!action) return;
@@ -1662,6 +1667,58 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error('Error handling global click:', err);
     }
   });
+
+  // Capture-phase dispatcher to increase robustness (fires before bubbling handlers)
+  document.documentElement.addEventListener('click', (event) => {
+    try {
+      const clicked = event.target.closest('[data-action]');
+      if (!clicked) return;
+
+      const action = clicked.dataset.action;
+      const param = clicked.dataset.param;
+      if (!action) return;
+
+      // mark as dispatched so bubble handler skips duplicate
+      clicked.dataset._dispatched = '1';
+
+      // Try dispatching safely
+      dispatchAction(action, param, clicked);
+    } catch (e) {
+      console.warn('Capture dispatcher error', e);
+    }
+  }, true);
+
+  // Make data-action elements keyboard accessible and add key handlers
+  function enhanceActionElements(root = document) {
+    const els = (root || document).querySelectorAll('[data-action]');
+    els.forEach(el => {
+      if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+      if (!el.hasAttribute('role')) el.setAttribute('role', el.tagName.toLowerCase() === 'button' ? 'button' : 'button');
+      if (!el.dataset._keybound) {
+        el.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault();
+            el.click();
+          }
+        });
+        el.dataset._keybound = '1';
+      }
+    });
+  }
+
+  // Observe DOM changes to enhance newly added action elements
+  const actionObserver = new MutationObserver(muts => {
+    muts.forEach(m => {
+      if (m.addedNodes && m.addedNodes.length) {
+        m.addedNodes.forEach(node => {
+          if (node.nodeType === 1) enhanceActionElements(node);
+        });
+      }
+    });
+  });
+  actionObserver.observe(document.body, { childList: true, subtree: true });
+  // initial enhancement
+  enhanceActionElements(document);
 
   // Handler pour fermer la modale review en cliquant en dehors
   const reviewModal = document.getElementById('review-modal');
@@ -4298,3 +4355,38 @@ clampObserver.observe(document.body, { childList: true, subtree: true, attribute
 window.addEventListener('resize', clampFloatingElements);
 window.addEventListener('orientationchange', clampFloatingElements);
 setTimeout(clampFloatingElements, 300);
+
+/**
+ * Dispatch an action name safely: try global function, then known handlers
+ */
+function dispatchAction(action, param, target) {
+  try {
+    // If a global function with this name exists, call it
+    if (typeof window[action] === 'function') {
+      try { window[action](param, target); return true; } catch(e){}
+    }
+
+    // Map of common actions -> functions (if defined)
+    const map = {
+      goTo, handleChooseOption, confirmLanguage, handleSubscription,
+      handleLogout, showSampleTeacherProfile, showUserProfile, openReviewModal,
+      closeReviewModal, acceptClashMatch, refuseClashMatch, copyToClipboard,
+      startSearching, startSearchingTeacher
+    };
+
+    if (map[action] && typeof map[action] === 'function') {
+      try { map[action](param, target); return true; } catch(e){}
+    }
+
+    // Fallback: try to trigger click on the element itself
+    if (target && typeof target.click === 'function') {
+      try { target.click(); return true; } catch(e){}
+    }
+
+    console.warn('dispatchAction: action not handled', action);
+    return false;
+  } catch (err) {
+    console.error('dispatchAction error', err);
+    return false;
+  }
+}
