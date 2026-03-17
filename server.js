@@ -1184,12 +1184,16 @@ setInterval(() => {
 
 // ============== ENDPOINTS ADMIN ==============
 
-// Liste des emails administrateurs autorisés
-const ADMIN_EMAILS = ['maxime.chantepiee@gmail.com', 'jan.smid14@gmail.com'];
+// Liste des emails administrateurs autorisés (normalisée)
+const ADMIN_EMAILS = new Set([
+  'maxime.chantepiee@gmail.com',
+  'maxime.chantepie@gmail.com',
+  'jan.smid14@gmail.com'
+].map(e => e.toLowerCase()));
 
 // Middleware pour vérifier si l'utilisateur est admin
 function isAdminEmail(email) {
-  return email && ADMIN_EMAILS.includes(email.toLowerCase());
+  return !!(email && ADMIN_EMAILS.has(String(email).toLowerCase()));
 }
 
 /**

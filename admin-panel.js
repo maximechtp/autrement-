@@ -12,8 +12,12 @@ const API_BASE_URL = (() => {
   }
 })();
 
-// Admin emails autorisés
-const ADMIN_EMAILS = ['maxime.chantepiee@gmail.com', 'jan.smid14@gmail.com'];
+// Admin emails autorisés (liste normalisée en minuscules)
+const ADMIN_EMAILS = new Set([
+  'maxime.chantepiee@gmail.com',
+  'maxime.chantepie@gmail.com',
+  'jan.smid14@gmail.com'
+].map(e => e.toLowerCase()));
 
 // État de l'application
 let appState = {
@@ -118,7 +122,7 @@ function checkAdminAuth() {
     const session = JSON.parse(sessionData);
     const email = session.email;
 
-    if (!ADMIN_EMAILS.includes(email.toLowerCase())) {
+    if (!ADMIN_EMAILS.has(email.toLowerCase())) {
       console.error('Non autorisé:', email);
       redirectToHome();
       return;
