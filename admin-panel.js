@@ -25,6 +25,54 @@ let appState = {
   selectedSubjects: []
 };
 
+// Local persistence keys (fallback when API unavailable)
+const LOCAL_SUBJECTS_KEY = 'lokin_admin_subjects';
+const LOCAL_TEACHERS_KEY = 'lokin_admin_teachers';
+
+function saveLocalSubjects(subjectsSet) {
+  try {
+    const arr = Array.from(subjectsSet || []);
+    localStorage.setItem(LOCAL_SUBJECTS_KEY, JSON.stringify(arr));
+  } catch (e) {
+    console.warn('Could not save local subjects', e);
+  }
+}
+
+function getLocalSubjects() {
+  try {
+    const raw = localStorage.getItem(LOCAL_SUBJECTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveLocalTeacher(teacher) {
+  try {
+    const raw = localStorage.getItem(LOCAL_TEACHERS_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    // avoid duplicates by email
+    const exists = arr.find(t => t.email === teacher.email);
+    if (exists) {
+      Object.assign(exists, teacher);
+    } else {
+      arr.push(teacher);
+    }
+    localStorage.setItem(LOCAL_TEACHERS_KEY, JSON.stringify(arr));
+  } catch (e) {
+    console.warn('Could not save local teacher', e);
+  }
+}
+
+function getLocalTeachers() {
+  try {
+    const raw = localStorage.getItem(LOCAL_TEACHERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
 // ===== INITIALISATION =====
 document.addEventListener('DOMContentLoaded', () => {
   console.log('Admin Panel initializing...');
@@ -120,12 +168,23 @@ async function loadTeachers() {
 
     const data = await response.json();
     appState.teachers = data.teachers || [];
+    // persist locally as a cache
+    try { localStorage.setItem(LOCAL_TEACHERS_KEY, JSON.stringify(appState.teachers)); } catch(e){}
     
     updateTeachersList();
     updateStats();
 
   } catch (error) {
     console.error('Erreur loadTeachers:', error);
+    // Fallback to local cache
+    const local = getLocalTeachers();
+    if (local && local.length) {
+      appState.teachers = local;
+      updateTeachersList();
+      updateStats();
+      showNotification('Chargement local des professeurs (mode hors-ligne)', 'info');
+      return;
+    }
     showNotification('Erreur lors du chargement des professeurs', 'error');
   }
 }
@@ -142,12 +201,23 @@ async function loadAvailableSubjects() {
 
     const data = await response.json();
     appState.allSubjects = new Set(data.subjects || []);
+    // persist local copy
+    saveLocalSubjects(appState.allSubjects);
     
     updateSubjectsList();
     updateSubjectFilters();
 
   } catch (error) {
     console.error('Erreur loadAvailableSubjects:', error);
+    // Fallback to local subjects cache
+    const local = getLocalSubjects();
+    if (local && local.length) {
+      appState.allSubjects = new Set(local);
+      updateSubjectsList();
+      updateSubjectFilters();
+      showNotification('Chargement local des matières (mode hors-ligne)', 'info');
+      return;
+    }
   }
 }
 
@@ -579,8 +649,44 @@ async function createTeacher() {
   await loadTeacherAuthorizationRequests();
 
     showNotification(`Professeur ajouté: ${prenom} ${nom}`, 'success');
+    // Persist teacher locally and in local userDB for offline availability
+    try {
+      const teacherRecord = {
+        email,
+        prenom,
+        nom,
+        authorizedSubjects
+      };
+      saveLocalTeacher(teacherRecord);
+      if (typeof userDB !== 'undefined' && userDB.saveUser) {
+        userDB.saveUser({
+          email,
+          prenom,
+          nom,
+          isTeacher: true,
+          authorizedSubjects
+        }).catch(e => console.warn('userDB.saveUser failed', e));
+      }
+    } catch (e) {
+      console.warn('Could not persist teacher locally', e);
+    }
   } catch (error) {
     console.error('Erreur createTeacher:', error);
+    // If API fails, persist locally so admin still keeps track
+    try {
+      const teacherRecord = { email, prenom, nom, authorizedSubjects };
+      saveLocalTeacher(teacherRecord);
+      if (typeof userDB !== 'undefined' && userDB.saveUser) {
+        await userDB.saveUser({ email, prenom, nom, isTeacher: true, authorizedSubjects });
+      }
+      // refresh local view
+      await loadTeachers();
+      await loadAvailableSubjects();
+      showNotification('Professeur sauvegardé localement (API indisponible)', 'info');
+      return;
+    } catch (e) {
+      console.error('Erreur persistance locale createTeacher:', e);
+    }
     showNotification(error.message, 'error');
   }
 }
@@ -643,6 +749,8 @@ function setupEventListeners() {
       }
 
       appState.allSubjects.add(subject);
+      // persist locally
+      saveLocalSubjects(appState.allSubjects);
       input.value = '';
       updateSubjectsList();
       updateSubjectFilters();
@@ -650,7 +758,13 @@ function setupEventListeners() {
 
     } catch (error) {
       console.error('Erreur addSubject:', error);
-      showNotification(error.message, 'error');
+      // fallback: persist locally
+      appState.allSubjects.add(subject);
+      saveLocalSubjects(appState.allSubjects);
+      input.value = '';
+      updateSubjectsList();
+      updateSubjectFilters();
+      showNotification('Matière ajoutée localement (API indisponible)', 'info');
     }
   });
 
